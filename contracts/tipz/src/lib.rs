@@ -82,15 +82,14 @@ impl TipzContract {
 
     /// Update an existing profile (owner only).
     pub fn update_profile(
-        _env: Env,
-        _caller: Address,
-        _display_name: Option<String>,
-        _bio: Option<String>,
-        _image_url: Option<String>,
-        _x_handle: Option<String>,
+        env: Env,
+        caller: Address,
+        display_name: Option<String>,
+        bio: Option<String>,
+        image_url: Option<String>,
+        x_handle: Option<String>,
     ) -> Result<(), ContractError> {
-        // TODO: Implement in issue #3 - Profile Update
-        Err(ContractError::NotInitialized)
+        profile::update_profile(&env, caller, display_name, bio, image_url, x_handle)
     }
 
     /// Update X (Twitter) metrics for a creator (admin only).
@@ -202,10 +201,18 @@ impl TipzContract {
     // Leaderboard
     // ──────────────────────────────────────────────
 
-    /// Get the top creators by total tips received.
-    pub fn get_leaderboard(_env: Env, _limit: u32) -> Result<Vec<LeaderboardEntry>, ContractError> {
-        // TODO: Implement in issue #17 - Leaderboard
-        Err(ContractError::NotInitialized)
+    /// Get the top creators by total tips received, sorted descending.
+    ///
+    /// Returns at most `limit` entries.  Passing `limit = 0` returns all
+    /// stored entries (up to 50).
+    pub fn get_leaderboard(env: Env, limit: u32) -> Result<Vec<LeaderboardEntry>, ContractError> {
+        Ok(leaderboard::get_leaderboard(&env, limit))
+    }
+
+    /// Return the 1-based rank of `address` on the leaderboard, or `None`
+    /// when the address has not yet appeared in the top 50.
+    pub fn get_leaderboard_rank(env: Env, address: Address) -> Option<u32> {
+        leaderboard::get_leaderboard_rank(&env, &address)
     }
 
     // ──────────────────────────────────────────────

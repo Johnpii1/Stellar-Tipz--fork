@@ -27,7 +27,6 @@ pub fn emit_profile_registered(env: &Env, address: &Address, username: &String) 
 /// Emit a `ProfileUpdated` event when a profile is modified.
 ///
 /// Topic: ("profile", "updated")
-#[allow(dead_code)]
 pub fn emit_profile_updated(env: &Env, address: &Address) {
     env.events().publish(
         (symbol_short!("profile"), symbol_short!("updated")),
