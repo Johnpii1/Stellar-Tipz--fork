@@ -11,6 +11,21 @@ use crate::errors::ContractError;
 use crate::events;
 use crate::storage::{self, DataKey};
 
+pub fn require_admin(env: &Env, caller: &Address) -> Result<(), ContractError> {
+    if !storage::is_initialized(env) {
+        return Err(ContractError::NotInitialized);
+    }
+
+    let admin = storage::get_admin(env);
+    if caller != &admin {
+        return Err(ContractError::NotAuthorized);
+    }
+
+    caller.require_auth();
+
+    Ok(())
+}
+
 /// Initialize the contract. Can only be called once.
 pub fn initialize(
     env: &Env,
@@ -84,16 +99,7 @@ pub fn update_x_metrics(
     x_followers: u32,
     x_engagement_avg: u32,
 ) -> Result<(), ContractError> {
-    if !storage::is_initialized(env) {
-        return Err(ContractError::NotInitialized);
-    }
-
-    let admin = storage::get_admin(env);
-    if caller != &admin {
-        return Err(ContractError::NotAuthorized);
-    }
-
-    admin.require_auth();
+    require_admin(env, caller)?;
 
     if !storage::has_profile(env, creator) {
         return Err(ContractError::NotRegistered);
@@ -114,16 +120,7 @@ pub fn batch_update_x_metrics(
     caller: &Address,
     updates: Vec<(Address, u32, u32)>,
 ) -> Result<u32, ContractError> {
-    if !storage::is_initialized(env) {
-        return Err(ContractError::NotInitialized);
-    }
-
-    let admin = storage::get_admin(env);
-    if caller != &admin {
-        return Err(ContractError::NotAuthorized);
-    }
-
-    admin.require_auth();
+    require_admin(env, caller)?;
 
     let len = updates.len();
     if len > MAX_X_METRICS_BATCH_LEN {
