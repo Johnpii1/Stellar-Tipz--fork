@@ -27,6 +27,9 @@ const App: React.FC = () => {
             */}
           </Routes>
         </div>
+        <div>
+          hellooooo
+        </div>
         <Footer />
       </div>
     </BrowserRouter>
