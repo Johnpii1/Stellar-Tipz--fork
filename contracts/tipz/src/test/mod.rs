@@ -8,5 +8,6 @@ mod test_profile_query;
 mod test_profiles;
 mod test_register;
 mod test_tips;
+mod test_update_profile;
 mod test_validation;
 mod test_withdraw;
