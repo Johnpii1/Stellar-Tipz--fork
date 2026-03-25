@@ -1,20 +1,15 @@
-//! Tests for admin fee-management functions.
-//!
-//! Covers:
-//!   set_fee        – happy path, boundary, above-max, non-admin
-//!   set_fee_collector – happy path, non-admin
-//!   set_admin      – happy path, old-admin locked-out, non-admin
-//!
-//! Drop this file at  contracts/tipz/src/test_admin_fee.rs
-//! and add  `mod test_admin_fee;`  inside the  `#[cfg(test)]`  block in lib.rs
-//! (or alongside the existing `mod test;` line).
+//! Tests for admin functions.
 
 #![cfg(test)]
 
-use soroban_sdk::{ testutils::Address as _, Address, Env };
+use soroban_sdk::{
+    testutils::{Address as _, Events},
+    vec, Address, Env, String,
+};
 
 use crate::errors::ContractError;
-use crate::storage::DataKey;
+use crate::storage::{self, DataKey};
+use crate::types::Profile;
 use crate::TipzContract;
 use crate::TipzContractClient;
 
@@ -25,10 +20,9 @@ struct TestCtx<'a> {
     client: TipzContractClient<'a>,
     admin: Address,
     fee_collector: Address,
+    contract_id: Address,
 }
 
-/// Spin up a contract and call `initialize` so all three admin functions have
-/// a valid contract state to work against.
 fn setup() -> TestCtx<'static> {
     let env = Env::default();
     env.mock_all_auths();
@@ -39,9 +33,10 @@ fn setup() -> TestCtx<'static> {
     let admin = Address::generate(&env);
     let fee_collector = Address::generate(&env);
 
-    // Register a native-token SAC so `initialize` succeeds
     let token_admin = Address::generate(&env);
-    let native_token = env.register_stellar_asset_contract_v2(token_admin).address();
+    let native_token = env
+        .register_stellar_asset_contract_v2(token_admin)
+        .address();
 
     client.initialize(&admin, &fee_collector, &200_u32, &native_token);
 
@@ -50,7 +45,32 @@ fn setup() -> TestCtx<'static> {
         client,
         admin,
         fee_collector,
+        contract_id,
     }
+}
+
+/// Insert a minimal profile directly into storage (bypasses validation).
+fn insert_profile(ctx: &TestCtx, owner: &Address) {
+    let now = ctx.env.ledger().timestamp();
+    let profile = Profile {
+        owner: owner.clone(),
+        username: String::from_str(&ctx.env, "user"),
+        display_name: String::from_str(&ctx.env, "User"),
+        bio: String::from_str(&ctx.env, ""),
+        image_url: String::from_str(&ctx.env, ""),
+        x_handle: String::from_str(&ctx.env, ""),
+        x_followers: 0,
+        x_engagement_avg: 0,
+        credit_score: 40,
+        total_tips_received: 0,
+        total_tips_count: 0,
+        balance: 0,
+        registered_at: now,
+        updated_at: now,
+    };
+    ctx.env.as_contract(&ctx.contract_id, || {
+        storage::set_profile(&ctx.env, &profile);
+    });
 }
 
 // ── set_fee ───────────────────────────────────────────────────────────────────
@@ -61,7 +81,11 @@ fn test_set_fee_updates_stored_value() {
     ctx.client.set_fee(&ctx.admin, &500_u32);
 
     let stored: u32 = ctx.env.as_contract(&ctx.client.address, || {
-        ctx.env.storage().instance().get(&DataKey::FeePercent).unwrap()
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeePercent)
+            .unwrap()
     });
     assert_eq!(stored, 500);
 }
@@ -72,7 +96,11 @@ fn test_set_fee_boundary_1000_succeeds() {
     ctx.client.set_fee(&ctx.admin, &1000_u32);
 
     let stored: u32 = ctx.env.as_contract(&ctx.client.address, || {
-        ctx.env.storage().instance().get(&DataKey::FeePercent).unwrap()
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeePercent)
+            .unwrap()
     });
     assert_eq!(stored, 1000);
 }
@@ -83,7 +111,11 @@ fn test_set_fee_zero_succeeds() {
     ctx.client.set_fee(&ctx.admin, &0_u32);
 
     let stored: u32 = ctx.env.as_contract(&ctx.client.address, || {
-        ctx.env.storage().instance().get(&DataKey::FeePercent).unwrap()
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeePercent)
+            .unwrap()
     });
     assert_eq!(stored, 0);
 }
@@ -110,7 +142,10 @@ fn test_set_fee_emits_fee_updated_event() {
     ctx.client.set_fee(&ctx.admin, &300_u32);
 
     let events = ctx.env.events().all();
-    assert!(!events.is_empty(), "expected a FeeUpdated event to be emitted");
+    assert!(
+        !events.is_empty(),
+        "expected a FeeUpdated event to be emitted"
+    );
 }
 
 // ── set_fee_collector ─────────────────────────────────────────────────────────
@@ -123,7 +158,11 @@ fn test_set_fee_collector_updates_stored_address() {
     ctx.client.set_fee_collector(&ctx.admin, &new_collector);
 
     let stored: Address = ctx.env.as_contract(&ctx.client.address, || {
-        ctx.env.storage().instance().get(&DataKey::FeeCollector).unwrap()
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeeCollector)
+            .unwrap()
     });
     assert_eq!(stored, new_collector);
 }
@@ -144,7 +183,10 @@ fn test_set_fee_collector_emits_event() {
     ctx.client.set_fee_collector(&ctx.admin, &new_collector);
 
     let events = ctx.env.events().all();
-    assert!(!events.is_empty(), "expected a FeeCollectorUpdated event to be emitted");
+    assert!(
+        !events.is_empty(),
+        "expected a FeeCollectorUpdated event to be emitted"
+    );
 }
 
 // ── set_admin ─────────────────────────────────────────────────────────────────
@@ -185,7 +227,11 @@ fn test_set_admin_new_admin_gains_access() {
     ctx.client.set_fee(&new_admin, &100_u32);
 
     let stored: u32 = ctx.env.as_contract(&ctx.client.address, || {
-        ctx.env.storage().instance().get(&DataKey::FeePercent).unwrap()
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeePercent)
+            .unwrap()
     });
     assert_eq!(stored, 100);
 }
@@ -206,5 +252,181 @@ fn test_set_admin_emits_admin_changed_event() {
     ctx.client.set_admin(&ctx.admin, &new_admin);
 
     let events = ctx.env.events().all();
-    assert!(!events.is_empty(), "expected an AdminChanged event to be emitted");
+    assert!(
+        !events.is_empty(),
+        "expected an AdminChanged event to be emitted"
+    );
+}
+
+// ── test_set_fee_bps_success ──────────────────────────────────────────────────
+
+#[test]
+fn test_set_fee_bps_success() {
+    let ctx = setup();
+    ctx.client.set_fee(&ctx.admin, &350_u32);
+
+    let stored: u32 = ctx.env.as_contract(&ctx.contract_id, || {
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeePercent)
+            .unwrap()
+    });
+    assert_eq!(stored, 350);
+}
+
+// ── test_set_fee_bps_not_admin ────────────────────────────────────────────────
+
+#[test]
+fn test_set_fee_bps_not_admin() {
+    let ctx = setup();
+    let stranger = Address::generate(&ctx.env);
+    let result = ctx.client.try_set_fee(&stranger, &100_u32);
+    assert_eq!(result, Err(Ok(ContractError::NotAuthorized)));
+}
+
+// ── test_set_fee_bps_too_high ─────────────────────────────────────────────────
+
+#[test]
+fn test_set_fee_bps_too_high() {
+    let ctx = setup();
+    let result = ctx.client.try_set_fee(&ctx.admin, &1001_u32);
+    assert_eq!(result, Err(Ok(ContractError::InvalidFee)));
+}
+
+// ── test_set_admin_success ────────────────────────────────────────────────────
+
+#[test]
+fn test_set_admin_success() {
+    let ctx = setup();
+    let new_admin = Address::generate(&ctx.env);
+
+    ctx.client.set_admin(&ctx.admin, &new_admin);
+
+    // new admin can perform an admin action
+    ctx.client.set_fee(&new_admin, &150_u32);
+    let stored: u32 = ctx.env.as_contract(&ctx.contract_id, || {
+        ctx.env
+            .storage()
+            .instance()
+            .get(&DataKey::FeePercent)
+            .unwrap()
+    });
+    assert_eq!(stored, 150);
+}
+
+// ── test_set_admin_old_admin_rejected ─────────────────────────────────────────
+
+#[test]
+fn test_set_admin_old_admin_rejected() {
+    let ctx = setup();
+    let new_admin = Address::generate(&ctx.env);
+
+    ctx.client.set_admin(&ctx.admin, &new_admin);
+
+    let result = ctx.client.try_set_fee(&ctx.admin, &100_u32);
+    assert_eq!(result, Err(Ok(ContractError::NotAuthorized)));
+}
+
+// ── test_update_x_metrics_success ────────────────────────────────────────────
+
+#[test]
+fn test_update_x_metrics_success() {
+    let ctx = setup();
+    let creator = Address::generate(&ctx.env);
+    insert_profile(&ctx, &creator);
+
+    ctx.client
+        .update_x_metrics(&ctx.admin, &creator, &5000_u32, &100_u32);
+
+    let profile = ctx.env.as_contract(&ctx.contract_id, || {
+        storage::get_profile(&ctx.env, &creator)
+    });
+    assert_eq!(profile.x_followers, 5000);
+    assert_eq!(profile.x_engagement_avg, 100);
+    // credit score must have been recalculated (x metrics now non-zero → score > 40)
+    assert!(profile.credit_score > 40);
+}
+
+// ── test_update_x_metrics_not_admin ──────────────────────────────────────────
+
+#[test]
+fn test_update_x_metrics_not_admin() {
+    let ctx = setup();
+    let creator = Address::generate(&ctx.env);
+    insert_profile(&ctx, &creator);
+
+    let stranger = Address::generate(&ctx.env);
+    let result = ctx
+        .client
+        .try_update_x_metrics(&stranger, &creator, &1000_u32, &50_u32);
+    assert_eq!(result, Err(Ok(ContractError::NotAuthorized)));
+}
+
+// ── test_batch_update_success ─────────────────────────────────────────────────
+
+#[test]
+fn test_batch_update_success() {
+    let ctx = setup();
+    let creator1 = Address::generate(&ctx.env);
+    let creator2 = Address::generate(&ctx.env);
+    insert_profile(&ctx, &creator1);
+    insert_profile(&ctx, &creator2);
+
+    let updates = vec![
+        &ctx.env,
+        (creator1.clone(), 1000_u32, 20_u32),
+        (creator2.clone(), 2000_u32, 40_u32),
+    ];
+    let updated = ctx.client.batch_update_x_metrics(&ctx.admin, &updates);
+    assert_eq!(updated, 2);
+
+    let p1 = ctx.env.as_contract(&ctx.contract_id, || {
+        storage::get_profile(&ctx.env, &creator1)
+    });
+    let p2 = ctx.env.as_contract(&ctx.contract_id, || {
+        storage::get_profile(&ctx.env, &creator2)
+    });
+    assert_eq!(p1.x_followers, 1000);
+    assert_eq!(p2.x_followers, 2000);
+}
+
+// ── test_batch_update_too_large ───────────────────────────────────────────────
+
+#[test]
+fn test_batch_update_too_large() {
+    let ctx = setup();
+    let addr = Address::generate(&ctx.env);
+    // Build a vec of 51 entries (one over the limit of 50)
+    let mut updates = vec![&ctx.env, (addr.clone(), 0_u32, 0_u32)];
+    for _ in 0..50 {
+        updates.push_back((addr.clone(), 0_u32, 0_u32));
+    }
+    let result = ctx.client.try_batch_update_x_metrics(&ctx.admin, &updates);
+    assert_eq!(result, Err(Ok(ContractError::BatchTooLarge)));
+}
+
+// ── test_batch_update_skips_unregistered ──────────────────────────────────────
+
+#[test]
+fn test_batch_update_skips_unregistered() {
+    let ctx = setup();
+    let registered = Address::generate(&ctx.env);
+    let unregistered = Address::generate(&ctx.env);
+    insert_profile(&ctx, &registered);
+
+    let updates = vec![
+        &ctx.env,
+        (registered.clone(), 500_u32, 10_u32),
+        (unregistered.clone(), 999_u32, 99_u32),
+    ];
+    // Should not error — unregistered entry is silently skipped
+    let updated = ctx.client.batch_update_x_metrics(&ctx.admin, &updates);
+    assert_eq!(updated, 1);
+
+    // Registered creator was updated
+    let profile = ctx.env.as_contract(&ctx.contract_id, || {
+        storage::get_profile(&ctx.env, &registered)
+    });
+    assert_eq!(profile.x_followers, 500);
 }
