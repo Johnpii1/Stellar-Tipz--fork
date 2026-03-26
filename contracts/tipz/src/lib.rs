@@ -148,8 +148,8 @@ impl TipzContract {
     }
 
     /// Withdraw accumulated tips (fee deducted).
-    pub fn withdraw_tips(_env: Env, _caller: Address, _amount: i128) -> Result<(), ContractError> {
-        withdraw::withdraw_tips(&_env, &_caller, _amount)
+    pub fn withdraw_tips(env: Env, caller: Address, amount: i128) -> Result<(), ContractError> {
+        tips::withdraw_tips(&env, &caller, amount)
     }
 
     /// Get a single tip record by its ID.
@@ -178,6 +178,7 @@ impl TipzContract {
             return Err(ContractError::NotRegistered);
         }
 
+        storage::extend_instance_ttl(&env);
         let mut profile = storage::get_profile(&env, &address);
         let score = credit::calculate_credit_score(&profile, env.ledger().timestamp());
         profile.credit_score = score;
@@ -202,58 +203,65 @@ impl TipzContract {
     // Leaderboard
     // ──────────────────────────────────────────────
 
-    /// Get the top creators by total tips received.
-    pub fn get_leaderboard(_env: Env, _limit: u32) -> Result<Vec<LeaderboardEntry>, ContractError> {
-        if !storage::is_initialized(&_env) {
-            return Err(ContractError::NotInitialized);
-        }
-        Ok(leaderboard::get_leaderboard(&_env, _limit))
+    /// Get the top creators by total tips received, sorted descending.
+    ///
+    /// Returns at most `limit` entries.  Passing `limit = 0` returns all
+    /// stored entries (up to 50).
+    pub fn get_leaderboard(env: Env, limit: u32) -> Result<Vec<LeaderboardEntry>, ContractError> {
+        Ok(leaderboard::get_leaderboard(&env, limit))
+    }
+
+    /// Return the 1-based rank of `address` on the leaderboard, or `None`
+    /// when the address has not yet appeared in the top 50.
+    pub fn get_leaderboard_rank(env: Env, address: Address) -> Option<u32> {
+        leaderboard::get_leaderboard_rank(&env, &address)
     }
 
     // ──────────────────────────────────────────────
     // Admin
     // ──────────────────────────────────────────────
 
-    /// Update the withdrawal fee (admin only).
-    pub fn set_fee(_env: Env, _caller: Address, _fee_bps: u32) -> Result<(), ContractError> {
-        // TODO: Implement in issue #20 - Admin Fee Management
-        Err(ContractError::NotInitialized)
+    /// Update the withdrawal fee in basis points (max 1000 = 10 %). Admin only.
+    ///
+    /// Emits a `FeeUpdated` event with `(old_bps, new_bps)`.
+    pub fn set_fee(env: Env, caller: Address, fee_bps: u32) -> Result<(), ContractError> {
+        admin::set_fee(&env, &caller, fee_bps)
     }
 
-    /// Update the fee collector address (admin only).
+    /// Update the fee collector address. Admin only.
+    ///
+    /// Emits a `FeeCollectorUpdated` event with the new collector address.
     pub fn set_fee_collector(
-        _env: Env,
-        _caller: Address,
-        _new_collector: Address,
+        env: Env,
+        caller: Address,
+        new_collector: Address,
     ) -> Result<(), ContractError> {
-        // TODO: Implement in issue #21 - Fee Collector Update
-        Err(ContractError::NotInitialized)
+        admin::set_fee_collector(&env, &caller, &new_collector)
     }
 
-    /// Transfer admin role (admin only).
-    pub fn set_admin(
-        _env: Env,
-        _caller: Address,
-        _new_admin: Address,
-    ) -> Result<(), ContractError> {
-        // TODO: Implement in issue #22 - Admin Transfer
-        Err(ContractError::NotInitialized)
+    /// Transfer the admin role to a new address. Admin only.
+    ///
+    /// Emits an `AdminChanged` event with `(old_admin, new_admin)`.
+    pub fn set_admin(env: Env, caller: Address, new_admin: Address) -> Result<(), ContractError> {
+        admin::set_admin(&env, &caller, &new_admin)
     }
 
     /// Get global contract statistics.
-    pub fn get_stats(_env: Env) -> Result<ContractStats, ContractError> {
-        if !storage::is_initialized(&_env) {
+    pub fn get_stats(env: Env) -> Result<ContractStats, ContractError> {
+        if !storage::is_initialized(&env) {
             return Err(ContractError::NotInitialized);
         }
+        Ok(ContractStats {
+            total_creators: storage::get_total_creators(&env),
+            total_tips_count: storage::get_tip_count(&env),
+            total_tips_volume: storage::get_total_tips_volume(&env),
+            total_fees_collected: storage::get_total_fees(&env),
+            fee_bps: storage::get_fee_bps(&env),
+        })
+    }
 
-        let stats = ContractStats {
-            total_creators: storage::get_total_creators(&_env),
-            total_tips_count: storage::get_tip_count(&_env),
-            total_tips_volume: storage::get_total_tips_volume(&_env),
-            total_fees_collected: storage::get_total_fees(&_env),
-            fee_bps: storage::get_fee_bps(&_env),
-        };
-
-        Ok(stats)
+    /// Extend the contract instance TTL manually (admin only).
+    pub fn bump_ttl(env: Env, caller: Address) -> Result<(), ContractError> {
+        admin::bump_ttl(&env, &caller)
     }
 }

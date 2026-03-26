@@ -1,83 +1,70 @@
-//! Contract event definitions for the Tipz contract.
+//! Event emission helpers for the Tipz contract.
 //!
-//! All events are published via `env.events().publish()`.
+//! Every on-chain action that mutates meaningful state emits an event so that
+//! off-chain indexers can follow contract activity without replaying every
+//! transaction.
 //!
-//! Events:
-//! - ProfileRegistered(address, username)
-//! - ProfileUpdated(address)
-//! - TipSent(from, to, amount)
-//! - TipsWithdrawn(address, amount, fee)
-//! - CreditScoreUpdated(address, old_score, new_score)
-//! - XMetricsBatchSkipped(creator) — batch update skipped unregistered address
-//! - AdminChanged(old_admin, new_admin)
-//! - FeeUpdated(old_fee, new_fee)
+//! ## Naming convention
+//! Topic tuple  → `(Symbol, Symbol)`   – identifies the event type
+//! Data tuple   → `(field, field, …)`  – the payload
 
 use soroban_sdk::{symbol_short, Address, Env, String};
 
-/// Emit a `ProfileRegistered` event containing the creator's address and username.
-///
-/// Topic: ("profile", "registered")
-pub fn emit_profile_registered(env: &Env, address: &Address, username: &String) {
+// ── Profile events ────────────────────────────────────────────────────────────
+
+/// Topics : `("profile", "registered")`
+/// Data   : `(owner: Address, username: String)`
+pub fn emit_profile_registered(env: &Env, owner: &Address, username: &String) {
     env.events().publish(
         (symbol_short!("profile"), symbol_short!("register")),
-        (address.clone(), username.clone()),
+        (owner.clone(), username.clone()),
     );
 }
 
-/// Emit a `ProfileUpdated` event when a profile is modified.
-///
-/// Topic: ("profile", "updated")
-#[allow(dead_code)]
-pub fn emit_profile_updated(env: &Env, address: &Address) {
+/// Topics : `("profile", "updated")`
+/// Data   : `(owner: Address,)`
+pub fn emit_profile_updated(env: &Env, owner: &Address) {
     env.events().publish(
         (symbol_short!("profile"), symbol_short!("updated")),
-        address.clone(),
+        (owner.clone(),),
     );
 }
 
-/// Emit a `TipSent` event when a tip is successfully sent.
-///
-/// Topic: ("tip", "sent")
+// ── Tip events ────────────────────────────────────────────────────────────────
+
+/// Topics : `("tip", "sent")`
+/// Data   : `(from: Address, to: Address, amount: i128)`
 pub fn emit_tip_sent(env: &Env, from: &Address, to: &Address, amount: i128) {
     env.events().publish(
         (symbol_short!("tip"), symbol_short!("sent")),
-        (from, to, amount),
+        (from.clone(), to.clone(), amount),
     );
 }
 
-/// Emit a `TipsWithdrawn` event when a creator withdraws their tips.
-///
-/// Topic: ("tip", "withdrawn")
-#[allow(dead_code)]
-pub fn emit_tips_withdrawn(env: &Env, address: &Address, amount: i128, fee: i128) {
+/// Topics : `("tip", "withdrawn")`
+/// Data   : `(creator: Address, amount: i128, fee: i128)`
+pub fn emit_tips_withdrawn(env: &Env, creator: &Address, amount: i128, fee: i128) {
     env.events().publish(
         (symbol_short!("tip"), symbol_short!("withdrawn")),
-        (address.clone(), amount, fee),
+        (creator.clone(), amount, fee),
     );
 }
 
-/// Emit a `CreditScoreUpdated` event when a creator's credit score changes.
-///
-/// Topic: ("credit", "updated")
-pub fn emit_credit_score_updated(env: &Env, address: &Address, old_score: u32, new_score: u32) {
+// ── Credit score events ───────────────────────────────────────────────────────
+
+/// Topics : `("credit", "updated")`
+/// Data   : `(creator: Address, old_score: u32, new_score: u32)`
+pub fn emit_credit_score_updated(env: &Env, creator: &Address, old_score: u32, new_score: u32) {
     env.events().publish(
         (symbol_short!("credit"), symbol_short!("updated")),
-        (address.clone(), old_score, new_score),
+        (creator.clone(), old_score, new_score),
     );
 }
 
-/// Emitted when a batch X metrics update skips a creator who is not registered.
-pub fn emit_x_metrics_batch_skipped(env: &Env, creator: &Address) {
-    env.events().publish(
-        (symbol_short!("xbatch"), symbol_short!("skipped")),
-        creator.clone(),
-    );
-}
+// ── Admin events ──────────────────────────────────────────────────────────────
 
-/// Emit an `AdminChanged` event when the admin role is transferred.
-///
-/// Topic: ("admin", "changed")
-#[allow(dead_code)]
+/// Topics : `("admin", "changed")`
+/// Data   : `(old_admin: Address, new_admin: Address)`
 pub fn emit_admin_changed(env: &Env, old_admin: &Address, new_admin: &Address) {
     env.events().publish(
         (symbol_short!("admin"), symbol_short!("changed")),
@@ -85,13 +72,33 @@ pub fn emit_admin_changed(env: &Env, old_admin: &Address, new_admin: &Address) {
     );
 }
 
-/// Emit a `FeeUpdated` event when the withdrawal fee is changed.
-///
-/// Topic: ("fee", "updated")
-#[allow(dead_code)]
+// ── Fee events ────────────────────────────────────────────────────────────────
+
+/// Topics : `("fee", "updated")`
+/// Data   : `(old_bps: u32, new_bps: u32)`
 pub fn emit_fee_updated(env: &Env, old_bps: u32, new_bps: u32) {
     env.events().publish(
         (symbol_short!("fee"), symbol_short!("updated")),
         (old_bps, new_bps),
+    );
+}
+
+/// Topics : `("fee", "collector")`
+/// Data   : `(new_collector: Address,)`
+pub fn emit_fee_collector_updated(env: &Env, new_collector: &Address) {
+    env.events().publish(
+        (symbol_short!("fee"), symbol_short!("collector")),
+        (new_collector.clone(),),
+    );
+}
+
+// ── Batch events ──────────────────────────────────────────────────────────────
+
+/// Topics : `("batch", "skipped")`
+/// Data   : `(creator: Address,)`
+pub fn emit_x_metrics_batch_skipped(env: &Env, creator: &Address) {
+    env.events().publish(
+        (symbol_short!("batch"), symbol_short!("skipped")),
+        (creator.clone(),),
     );
 }

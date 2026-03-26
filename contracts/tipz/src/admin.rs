@@ -11,6 +11,18 @@ use crate::errors::ContractError;
 use crate::events;
 use crate::storage::{self, DataKey};
 
+pub fn require_admin(env: &Env, caller: &Address) -> Result<(), ContractError> {
+    if !storage::is_initialized(env) {
+        return Err(ContractError::NotInitialized);
+    }
+    let admin = storage::get_admin(env);
+    if caller != &admin {
+        return Err(ContractError::NotAuthorized);
+    }
+    caller.require_auth();
+    Ok(())
+}
+
 /// Initialize the contract. Can only be called once.
 pub fn initialize(
     env: &Env,
@@ -19,14 +31,14 @@ pub fn initialize(
     fee_bps: u32,
     native_token: &Address,
 ) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+
     if storage::is_initialized(env) {
         return Err(ContractError::AlreadyInitialized);
     }
-
     if fee_bps > 1000 {
         return Err(ContractError::InvalidFee);
     }
-
     storage::set_initialized(env);
     storage::set_admin(env, admin);
     storage::set_fee_collector(env, fee_collector);
@@ -84,23 +96,12 @@ pub fn update_x_metrics(
     x_followers: u32,
     x_engagement_avg: u32,
 ) -> Result<(), ContractError> {
-    if !storage::is_initialized(env) {
-        return Err(ContractError::NotInitialized);
-    }
-
-    let admin = storage::get_admin(env);
-    if caller != &admin {
-        return Err(ContractError::NotAuthorized);
-    }
-
-    admin.require_auth();
-
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
     if !storage::has_profile(env, creator) {
         return Err(ContractError::NotRegistered);
     }
-
     apply_x_metrics_to_profile(env, creator, x_followers, x_engagement_avg);
-
     Ok(())
 }
 
@@ -114,22 +115,12 @@ pub fn batch_update_x_metrics(
     caller: &Address,
     updates: Vec<(Address, u32, u32)>,
 ) -> Result<u32, ContractError> {
-    if !storage::is_initialized(env) {
-        return Err(ContractError::NotInitialized);
-    }
-
-    let admin = storage::get_admin(env);
-    if caller != &admin {
-        return Err(ContractError::NotAuthorized);
-    }
-
-    admin.require_auth();
-
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
     let len = updates.len();
     if len > MAX_X_METRICS_BATCH_LEN {
         return Err(ContractError::BatchTooLarge);
     }
-
     let mut updated: u32 = 0;
     let mut i: u32 = 0;
     while i < len {
@@ -142,8 +133,48 @@ pub fn batch_update_x_metrics(
         }
         i += 1;
     }
-
     Ok(updated)
 }
 
-// TODO: Implement set_fee, set_fee_collector, set_admin in issues #20, #21, #22
+/// Extend the contract instance TTL manually. Admin only.
+pub fn bump_ttl(env: &Env, caller: &Address) -> Result<(), ContractError> {
+    require_admin(env, caller)?;
+    storage::extend_instance_ttl(env);
+    Ok(())
+}
+
+/// Update the withdrawal fee in basis points (max 1000 = 10%). Admin only.
+pub fn set_fee(env: &Env, caller: &Address, fee_bps: u32) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
+    if fee_bps > 1000 {
+        return Err(ContractError::InvalidFee);
+    }
+    let old_bps = storage::get_fee_bps(env);
+    storage::set_fee_bps(env, fee_bps);
+    events::emit_fee_updated(env, old_bps, fee_bps);
+    Ok(())
+}
+
+/// Update the fee collector address. Admin only.
+pub fn set_fee_collector(
+    env: &Env,
+    caller: &Address,
+    new_collector: &Address,
+) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
+    storage::set_fee_collector(env, new_collector);
+    events::emit_fee_collector_updated(env, new_collector);
+    Ok(())
+}
+
+/// Transfer the admin role to a new address. Admin only.
+pub fn set_admin(env: &Env, caller: &Address, new_admin: &Address) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
+    let old_admin = storage::get_admin(env);
+    storage::set_admin(env, new_admin);
+    events::emit_admin_changed(env, &old_admin, new_admin);
+    Ok(())
+}

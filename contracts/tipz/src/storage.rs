@@ -19,6 +19,15 @@ use crate::types::Profile;
 // TTL constants
 // ──────────────────────────────────────────────────────────────────────────────
 
+/// Approximate 7-day TTL in ledgers at ~5 seconds per ledger.
+pub const INSTANCE_TTL_MIN_LEDGERS: u32 = 120_960;
+
+/// Approximate 31-day TTL in ledgers at ~5 seconds per ledger.
+pub const INSTANCE_TTL_MAX_LEDGERS: u32 = 535_680;
+
+/// Approximate 7-day TTL in ledgers at ~5 seconds per ledger.
+pub const TIP_TTL_LEDGERS: u32 = 120_960;
+
 // ──────────────────────────────────────────────────────────────────────────────
 // DataKey
 // ──────────────────────────────────────────────────────────────────────────────
@@ -52,6 +61,20 @@ pub enum DataKey {
     Initialized,
     /// Native XLM token contract address (SAC)
     NativeToken,
+}
+
+/// Extend the contract instance TTL when a write transaction starts.
+pub fn extend_instance_ttl(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(INSTANCE_TTL_MIN_LEDGERS, INSTANCE_TTL_MAX_LEDGERS);
+}
+
+/// Set the TTL for a temporary tip record after storing it.
+pub fn set_tip_ttl(env: &Env, key: &DataKey) {
+    env.storage()
+        .temporary()
+        .extend_ttl(key, TIP_TTL_LEDGERS, TIP_TTL_LEDGERS);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -114,7 +137,6 @@ pub fn set_admin(env: &Env, admin: &Address) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Returns the withdrawal fee in basis points (100 bps = 1 %).
-#[allow(dead_code)]
 pub fn get_fee_bps(env: &Env) -> u32 {
     env.storage()
         .instance()
@@ -263,7 +285,6 @@ pub fn add_to_tips_volume(env: &Env, amount: i128) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Returns the lifetime total fees collected in stroops.
-#[allow(dead_code)]
 pub fn get_total_fees(env: &Env) -> i128 {
     env.storage()
         .instance()
@@ -287,6 +308,7 @@ pub fn add_to_fees(env: &Env, fee: i128) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use soroban_sdk::testutils::storage::{Instance, Temporary};
     use soroban_sdk::{testutils::Address as _, Env};
 
     use crate::TipzContract;
@@ -315,6 +337,15 @@ mod tests {
         env.as_contract(&id, || {
             env.storage().instance().set(&DataKey::Initialized, &true);
             assert!(is_initialized(&env));
+        });
+    }
+
+    #[test]
+    fn extend_instance_ttl_sets_expected_ttl() {
+        let (env, id) = make_env();
+        env.as_contract(&id, || {
+            extend_instance_ttl(&env);
+            assert_eq!(env.storage().instance().get_ttl(), INSTANCE_TTL_MAX_LEDGERS);
         });
     }
 
@@ -528,6 +559,17 @@ mod tests {
             add_to_fees(&env, 500);
             add_to_fees(&env, 300);
             assert_eq!(get_total_fees(&env), 800);
+        });
+    }
+
+    #[test]
+    fn set_tip_ttl_sets_expected_ttl() {
+        let (env, id) = make_env();
+        env.as_contract(&id, || {
+            let key = DataKey::Tip(7);
+            env.storage().temporary().set(&key, &7_u32);
+            set_tip_ttl(&env, &key);
+            assert_eq!(env.storage().temporary().get_ttl(&key), TIP_TTL_LEDGERS);
         });
     }
 }
