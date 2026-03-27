@@ -1,13 +1,34 @@
 import React from 'react';
 import Button from './Button';
 
-interface PaginationProps {
+export interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
 }
 
 const MAX_VISIBLE_PAGES = 5;
+const disabledButtonClassName =
+  'min-w-[3rem] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-x-0 disabled:hover:translate-y-0';
+
+const getVisiblePages = (currentPage: number, totalPages: number) => {
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const pagesToShow = Math.min(MAX_VISIBLE_PAGES, totalPages);
+  const halfWindow = Math.floor(pagesToShow / 2);
+
+  let startPage = Math.max(1, safeCurrentPage - halfWindow);
+  let endPage = startPage + pagesToShow - 1;
+
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - pagesToShow + 1);
+  }
+
+  return Array.from(
+    { length: endPage - startPage + 1 },
+    (_, index) => startPage + index
+  );
+};
 
 const Pagination: React.FC<PaginationProps> = ({
   currentPage,
@@ -19,30 +40,17 @@ const Pagination: React.FC<PaginationProps> = ({
   }
 
   const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
-  const halfWindow = Math.floor(MAX_VISIBLE_PAGES / 2);
+  const visiblePages = getVisiblePages(safeCurrentPage, totalPages);
+  const isFirstPage = safeCurrentPage === 1;
+  const isLastPage = safeCurrentPage === totalPages;
 
-  let startPage = Math.max(1, safeCurrentPage - halfWindow);
-  const endPage = Math.min(totalPages, startPage + MAX_VISIBLE_PAGES - 1);
-
-  startPage = Math.max(1, endPage - MAX_VISIBLE_PAGES + 1);
-
-  const visiblePages = Array.from(
-    { length: endPage - startPage + 1 },
-    (_, index) => startPage + index
-  );
-
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages || page === safeCurrentPage) {
+  const goToPage = (page: number) => {
+    if (page === safeCurrentPage || page < 1 || page > totalPages) {
       return;
     }
 
     onPageChange(page);
   };
-
-  const isFirstPage = safeCurrentPage === 1;
-  const isLastPage = safeCurrentPage === totalPages;
-  const disabledClassName =
-    'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-x-0 disabled:hover:translate-y-0';
 
   return (
     <nav
@@ -52,9 +60,9 @@ const Pagination: React.FC<PaginationProps> = ({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handlePageChange(1)}
+        className={disabledButtonClassName}
+        onClick={() => goToPage(1)}
         disabled={isFirstPage}
-        className={disabledClassName}
         aria-label="Go to first page"
       >
         First
@@ -63,33 +71,38 @@ const Pagination: React.FC<PaginationProps> = ({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handlePageChange(safeCurrentPage - 1)}
+        className={disabledButtonClassName}
+        onClick={() => goToPage(safeCurrentPage - 1)}
         disabled={isFirstPage}
-        className={disabledClassName}
         aria-label="Go to previous page"
       >
         Prev
       </Button>
 
-      {visiblePages.map((page) => (
-        <Button
-          key={page}
-          variant={page === safeCurrentPage ? 'primary' : 'outline'}
-          size="sm"
-          onClick={() => handlePageChange(page)}
-          aria-current={page === safeCurrentPage ? 'page' : undefined}
-          aria-label={`Go to page ${page}`}
-        >
-          {page}
-        </Button>
-      ))}
+      {visiblePages.map((page) => {
+        const isActive = page === safeCurrentPage;
+
+        return (
+          <Button
+            key={page}
+            variant={isActive ? 'primary' : 'outline'}
+            size="sm"
+            className="min-w-[3rem]"
+            onClick={() => goToPage(page)}
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={isActive ? `Current page, page ${page}` : `Go to page ${page}`}
+          >
+            {page}
+          </Button>
+        );
+      })}
 
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handlePageChange(safeCurrentPage + 1)}
+        className={disabledButtonClassName}
+        onClick={() => goToPage(safeCurrentPage + 1)}
         disabled={isLastPage}
-        className={disabledClassName}
         aria-label="Go to next page"
       >
         Next
@@ -98,9 +111,9 @@ const Pagination: React.FC<PaginationProps> = ({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handlePageChange(totalPages)}
+        className={disabledButtonClassName}
+        onClick={() => goToPage(totalPages)}
         disabled={isLastPage}
-        className={disabledClassName}
         aria-label="Go to last page"
       >
         Last
