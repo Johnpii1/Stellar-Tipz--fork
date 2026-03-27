@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
@@ -25,11 +26,24 @@ function validate(data: ProfileFormData): FormErrors {
     errors.displayName = 'Display name is required and must be 1–64 characters.';
   }
 
-  if (data.bio.length > 280) {
+  if (data.bio && data.bio.length > 280) {
     errors.bio = 'Bio must be 280 characters or fewer.';
   }
 
+  if (data.imageUrl && !isValidUrl(data.imageUrl)) {
+    errors.imageUrl = 'Please enter a valid URL.';
+  }
+
   return errors;
+}
+
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 interface EditProfileFormProps {
@@ -76,12 +90,29 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ profile }) => {
       setTxError(undefined);
       setTxHash(undefined);
 
-      const data: Partial<ProfileFormData> = {
-        displayName: form.displayName.trim(),
-        bio: form.bio.trim(),
-        imageUrl: form.imageUrl.trim(),
-        xHandle: form.xHandle.trim().replace(/^@/, ''),
-      };
+      // Only include fields that have changed
+      const data: Partial<ProfileFormData> = {};
+
+      if (form.displayName.trim() !== profile.displayName) {
+        data.displayName = form.displayName.trim();
+      }
+      if (form.bio.trim() !== profile.bio) {
+        data.bio = form.bio.trim();
+      }
+      if (form.imageUrl.trim() !== profile.imageUrl) {
+        data.imageUrl = form.imageUrl.trim();
+      }
+      const xHandleFormatted = form.xHandle.trim().replace(/^@/, '');
+      if (xHandleFormatted !== profile.xHandle) {
+        data.xHandle = xHandleFormatted;
+      }
+
+      // If no fields changed, show a toast and return
+      if (Object.keys(data).length === 0) {
+        addToast({ message: 'No changes to save.', type: 'info', duration: 3000 });
+        setTxStatus('idle');
+        return;
+      }
 
       setTxStatus('submitting');
       const hash = await updateProfile(data);
@@ -99,17 +130,29 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ profile }) => {
     }
   };
 
+  const handleCancel = () => {
+    navigate('/profile');
+  };
+
   const isSubmitting = ['signing', 'submitting', 'confirming'].includes(txStatus);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-lg mx-auto">
-      {/* Username (read-only) */}
+      {/* Username (read-only with lock icon) */}
       <div>
-        <Input
-          label="Username"
-          value={form.username}
-          disabled
-        />
+        <label className="block text-sm font-bold uppercase tracking-wide mb-2">
+          Username
+        </label>
+        <div className="relative">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+            <Lock size={18} />
+          </div>
+          <input
+            value={form.username}
+            disabled
+            className="w-full px-4 py-3 pl-12 border-2 border-black bg-gray-100 text-black font-medium opacity-75 cursor-not-allowed focus:outline-none"
+          />
+        </div>
         <p className="mt-1 text-xs text-gray-500">
           Username cannot be changed after registration.
         </p>
@@ -170,15 +213,27 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ profile }) => {
         />
       )}
 
-      <Button
-        type="submit"
-        variant="primary"
-        size="lg"
-        disabled={isSubmitting || txStatus === 'success'}
-        className="w-full"
-      >
-        {isSubmitting ? 'Updating…' : 'Save Changes'}
-      </Button>
+      <div className="flex gap-3 pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          disabled={isSubmitting}
+          className="flex-1"
+          onClick={handleCancel}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={isSubmitting || txStatus === 'success'}
+          className="flex-1"
+        >
+          {isSubmitting ? 'Updating…' : 'Save Changes'}
+        </Button>
+      </div>
     </form>
   );
 };

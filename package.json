@@ -7,6 +7,12 @@
     "doc": "docs"
   },
   "scripts": {
+    "dev": "cd frontend-scaffold && npm run dev",
+    "start": "cd frontend-scaffold && npm run start",
+    "build": "cd frontend-scaffold && npm run build",
+    "preview": "cd frontend-scaffold && npm run preview",
+    "typecheck": "cd frontend-scaffold && npm run typecheck",
+    "lint": "cd frontend-scaffold && npm run lint",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
