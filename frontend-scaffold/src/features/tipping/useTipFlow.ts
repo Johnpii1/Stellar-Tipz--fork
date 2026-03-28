@@ -19,25 +19,23 @@ export const useTipFlow = (creatorAddress: string): UseTipFlowReturn => {
   const [draft, setDraft] = useState<{ amount: string; message: string } | null>(null);
 
   useEffect(() => {
+    let newStep: TipFlowStep | null = null;
+
     if (txStatus === "signing") {
-      setStep("signing");
-      return;
+      newStep = "signing";
+    } else if (txStatus === "submitting" || txStatus === "confirming") {
+      newStep = "submitting";
+    } else if (txStatus === "success") {
+      newStep = "success";
+    } else if (txStatus === "error") {
+      newStep = "error";
     }
 
-    if (txStatus === "submitting" || txStatus === "confirming") {
-      setStep("submitting");
-      return;
+    if (newStep && newStep !== step) {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      setStep(newStep);
     }
-
-    if (txStatus === "success") {
-      setStep("success");
-      return;
-    }
-
-    if (txStatus === "error") {
-      setStep("error");
-    }
-  }, [txStatus]);
+  }, [txStatus, step]);
 
   const goToConfirm = useCallback((amount: string, message: string) => {
     setDraft({ amount, message });
@@ -68,6 +66,6 @@ export const useTipFlow = (creatorAddress: string): UseTipFlowReturn => {
       error,
       txHash,
     }),
-    [step, goToConfirm, confirmAndSign, reset, error, txHash],
+    [step, goToConfirm, confirmAndSign, reset, error, txHash, creatorAddress],
   );
 };

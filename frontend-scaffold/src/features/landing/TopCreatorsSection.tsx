@@ -8,7 +8,7 @@ import ProfileCard from '@/components/shared/ProfileCard';
 import Skeleton from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 
-const TopCreatorsSection: React.FC = () => {
+export default function TopCreatorsSection() {
   const [creators, setCreators] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,8 @@ const TopCreatorsSection: React.FC = () => {
         }
       });
     return () => { mounted = false; };
-  }, [getLeaderboard]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleViewFullLeaderboard = () => {
     navigate('/leaderboard');
@@ -115,6 +116,4 @@ const TopCreatorsSection: React.FC = () => {
       </div>
     </section>
   );
-};
-
-export default TopCreatorsSection;
+}

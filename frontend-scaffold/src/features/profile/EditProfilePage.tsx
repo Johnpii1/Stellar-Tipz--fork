@@ -11,6 +11,12 @@ const EditProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, isRegistered, loading } = useProfile();
 
+  React.useEffect(() => {
+    if (!loading && (!isRegistered || !profile)) {
+      navigate('/profile', { replace: true });
+    }
+  }, [loading, isRegistered, profile, navigate]);
+
   // Show loading state while checking profile
   if (loading) {
     return (
@@ -20,12 +26,8 @@ const EditProfilePage: React.FC = () => {
     );
   }
 
-  // If user has no profile, redirect to /profile to register first
+  // If user has no profile, return null while redirecting
   if (!isRegistered || !profile) {
-    React.useEffect(() => {
-      navigate('/profile', { replace: true });
-    }, [navigate]);
-
     return null;
   }
 

@@ -20,7 +20,7 @@ const getKit = (network: WalletNetwork) => {
       modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
     });
     currentNetwork = network;
-}
+  }
   return kitInstance;
 };
 
@@ -51,7 +51,7 @@ export const useWallet = () => {
             try {
               kit.setWallet(option.id);
               const { address } = await kit.getAddress();
-              
+
               // Automatic network detection for better UX
               try {
                 // If it's Freighter, check its current network
@@ -92,7 +92,10 @@ export const useWallet = () => {
       });
       return signedTxXdr;
     },
-  }), [publicKey, connected, connect, disconnect, setConnecting, setError, storeSetNetwork, kit]);
+  }), [publicKey, connected, connect, disconnect, setConnecting, setError, storeSetNetwork, kit, network]);
 
-  return { publicKey, connected, connecting, error, network, ...actions };
+  return useMemo(
+    () => ({ publicKey, connected, connecting, error, network, ...actions }),
+    [publicKey, connected, connecting, error, network, actions]
+  );
 };
