@@ -6,6 +6,7 @@ use crate::errors::ContractError;
 use crate::events;
 use crate::storage;
 use crate::types::Profile;
+use crate::validation;
 
 /// Register a new creator profile.
 ///
@@ -49,26 +50,12 @@ pub fn register_profile(
         return Err(ContractError::NotInitialized);
     }
 
-    // --- Input validation ---
+    // --- Input validation (centralized in validation module) ---
 
-    // Username: 3-32 chars, [a-z0-9_], must start with a letter.
-    crate::validation::validate_username(&username)?;
-
-    // Display name: 1-64 characters, non-empty.
-    let dn_len = display_name.len();
-    if dn_len == 0 || dn_len > 64 {
-        return Err(ContractError::InvalidDisplayName);
-    }
-
-    // Bio: max 280 characters.
-    if bio.len() > 280 {
-        return Err(ContractError::MessageTooLong);
-    }
-
-    // Image URL: max 256 characters.
-    if image_url.len() > 256 {
-        return Err(ContractError::InvalidImageUrl);
-    }
+    validation::validate_username(&username)?;
+    validation::validate_display_name(&display_name)?;
+    validation::validate_bio(&bio)?;
+    validation::validate_image_url(&image_url)?;
 
     // --- Duplicate checks ---
 
