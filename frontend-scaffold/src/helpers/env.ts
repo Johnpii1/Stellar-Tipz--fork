@@ -6,6 +6,7 @@ interface EnvConfig {
   networkPassphrase: string;
   contractId: string;
   network: NetworkType;
+  useMockData: boolean;
 }
 
 /**
@@ -18,7 +19,8 @@ function getEnv(): EnvConfig {
     VITE_NETWORK_PASSPHRASE,
     VITE_CONTRACT_ID,
     VITE_NETWORK,
-  } = (import.meta as any).env
+    VITE_USE_MOCK_DATA,
+  } = (import.meta as unknown as { env: Record<string, string | undefined> }).env
 
   return {
     sorobanRpcUrl:
@@ -33,6 +35,7 @@ function getEnv(): EnvConfig {
     contractId: VITE_CONTRACT_ID || "",
 
     network: (VITE_NETWORK as NetworkType) || "TESTNET",
+    useMockData: VITE_USE_MOCK_DATA === "true",
   };
 }
 

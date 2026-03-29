@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Coins } from "lucide-react";
 
-import Button from "../../components/ui/Button";
-import { stroopToXlm } from "../../helpers/format";
+import { stroopToXlm, stroopToXlmBigNumber, formatTimestamp } from "../../helpers/format";
 import { Tip } from "../../types/contract";
 
 type Period = "week" | "month" | "all";
@@ -20,28 +19,29 @@ const SECONDS_IN_DAY = 24 * 60 * 60;
 
 const EarningsChart: React.FC<EarningsChartProps> = ({ tips }) => {
   const [period, setPeriod] = useState<Period>("week");
+  const [anchorNowSec] = useState(() => Math.floor(Date.now() / 1000));
 
   const chartData = useMemo(() => {
     if (tips.length === 0) return [];
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = anchorNowSec;
     const result: DataPoint[] = [];
 
     const xlmTips = tips.map(t => ({
         ...t,
-        amountXlm: Number(stroopToXlm(t.amount).toFixed(7))
+        amountXlm: Number(stroopToXlmBigNumber(t.amount).toFixed(7))
     }));
 
     if (period === "week") {
       // Last 7 days
       for (let i = 6; i >= 0; i--) {
         const dayStart = now - (i * SECONDS_IN_DAY);
-        const date = new Date(dayStart * 1000);
+        const date = formatTimestamp(dayStart);
         const label = date.toLocaleDateString("en-US", { weekday: "short" });
-        
+
         const dayTotal = xlmTips
           .filter(t => {
-            const tDate = new Date(t.timestamp * 1000);
+            const tDate = formatTimestamp(t.timestamp);
             return tDate.toDateString() === date.toDateString();
           })
           .reduce((sum, t) => sum + t.amountXlm, 0);
@@ -53,7 +53,7 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ tips }) => {
       for (let i = 5; i >= 0; i--) {
         const blockEnd = now - (i * 5 * SECONDS_IN_DAY);
         const blockStart = blockEnd - (5 * SECONDS_IN_DAY);
-        const date = new Date(blockEnd * 1000);
+        const date = formatTimestamp(blockEnd);
         const label = `${date.getMonth() + 1}/${date.getDate()}`;
         
         const blockTotal = xlmTips
@@ -73,7 +73,7 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ tips }) => {
 
         const monthTotal = xlmTips
           .filter(t => {
-            const tDate = new Date(t.timestamp * 1000);
+            const tDate = formatTimestamp(t.timestamp);
             return tDate.getMonth() === month && tDate.getFullYear() === year;
           })
           .reduce((sum, t) => sum + t.amountXlm, 0);
@@ -83,7 +83,7 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ tips }) => {
     }
 
     return result;
-  }, [tips, period]);
+  }, [tips, period, anchorNowSec]);
 
   const maxValue = Math.max(...chartData.map(d => d.value), 1);
 

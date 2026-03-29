@@ -29,6 +29,12 @@ pub const INSTANCE_TTL_MAX_LEDGERS: u32 = 535_680;
 /// Approximate 7-day TTL in ledgers at ~5 seconds per ledger.
 pub const TIP_TTL_LEDGERS: u32 = 120_960;
 
+/// Minimum TTL threshold before a profile entry is extended (~7 days).
+pub const PROFILE_TTL_MIN_LEDGERS: u32 = 120_960;
+
+/// Target TTL for profile entries after a bump (~31 days).
+pub const PROFILE_TTL_MAX_LEDGERS: u32 = 535_680;
+
 // ──────────────────────────────────────────────────────────────────────────────
 // DataKey
 // ──────────────────────────────────────────────────────────────────────────────
@@ -42,6 +48,8 @@ pub enum DataKey {
     FeePercent,
     /// Address that receives fees
     FeeCollector,
+    /// On-chain contract version, written during initialization and bumped on each upgrade
+    ContractVersion,
     /// Lifetime fees collected
     TotalFeesCollected,
     /// Creator profile by address
@@ -74,6 +82,8 @@ pub enum DataKey {
     CreatorTipCount(Address),
     /// Reverse index: (creator, local_index) → global tip ID
     CreatorTip(Address, u32),
+    /// Pending admin address (proposed but not yet accepted)
+    PendingAdmin,
 }
 
 /// Extend the contract instance TTL when a write transaction starts.
@@ -181,6 +191,40 @@ pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
 }
 
+/// Returns the pending (proposed) admin address, or `None` if no proposal is active.
+pub fn get_pending_admin(env: &Env) -> Option<Address> {
+    env.storage().instance().get(&DataKey::PendingAdmin)
+}
+
+/// Stores a pending admin proposal.
+pub fn set_pending_admin(env: &Env, admin: &Address) {
+    env.storage().instance().set(&DataKey::PendingAdmin, admin);
+}
+
+/// Removes any pending admin proposal.
+pub fn remove_pending_admin(env: &Env) {
+    env.storage().instance().remove(&DataKey::PendingAdmin);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Contract version
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Returns the stored contract version, or 0 if not yet initialized.
+pub fn get_version(env: &Env) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::ContractVersion)
+        .unwrap_or(0)
+}
+
+/// Sets the stored contract version.
+pub fn set_version(env: &Env, version: u32) {
+    env.storage()
+        .instance()
+        .set(&DataKey::ContractVersion, &version);
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Fee basis points
 // ──────────────────────────────────────────────────────────────────────────────
@@ -249,6 +293,20 @@ pub fn set_profile(env: &Env, profile: &Profile) {
         .set(&DataKey::Profile(profile.owner.clone()), profile);
 }
 
+/// Remove a profile from persistent storage.
+pub fn remove_profile(env: &Env, address: &Address) {
+    env.storage()
+        .persistent()
+        .remove(&DataKey::Profile(address.clone()));
+}
+
+/// Remove a username reverse-lookup entry from persistent storage.
+pub fn remove_username_address(env: &Env, username: &String) {
+    env.storage()
+        .persistent()
+        .remove(&DataKey::UsernameToAddress(username.clone()));
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Username reverse lookup
 // ──────────────────────────────────────────────────────────────────────────────
@@ -265,6 +323,56 @@ pub fn set_username_address(env: &Env, username: &String, address: &Address) {
     env.storage()
         .persistent()
         .set(&DataKey::UsernameToAddress(username.clone()), address);
+}
+
+/// Bumps the TTL for both `Profile` and `UsernameToAddress` entries together,
+/// preventing TTL desync between the two persistent storage entries.
+///
+/// Must be called on every profile interaction (register, update, tip, withdraw).
+pub fn bump_profile_ttl(env: &Env, address: &Address) {
+    let profile_key = DataKey::Profile(address.clone());
+    if env.storage().persistent().has(&profile_key) {
+        env.storage().persistent().extend_ttl(
+            &profile_key,
+            PROFILE_TTL_MIN_LEDGERS,
+            PROFILE_TTL_MAX_LEDGERS,
+        );
+    }
+}
+
+/// Bumps the TTL for a `UsernameToAddress` entry.
+///
+/// Call this alongside [`bump_profile_ttl`] whenever the username is already
+/// known, to keep both entries in sync without an extra storage read.
+pub fn bump_username_ttl(env: &Env, username: &soroban_sdk::String) {
+    let username_key = DataKey::UsernameToAddress(username.clone());
+    if env.storage().persistent().has(&username_key) {
+        env.storage().persistent().extend_ttl(
+            &username_key,
+            PROFILE_TTL_MIN_LEDGERS,
+            PROFILE_TTL_MAX_LEDGERS,
+        );
+    }
+}
+
+/// Returns `true` only when both the `Profile` and its `UsernameToAddress`
+/// reverse-lookup entry exist in persistent storage.
+///
+/// A profile is considered active only when both entries are live; if either
+/// has expired the profile is in an orphaned state and should be treated as
+/// absent.
+pub fn is_profile_active(env: &Env, address: &Address) -> bool {
+    let profile_key = DataKey::Profile(address.clone());
+    if !env.storage().persistent().has(&profile_key) {
+        return false;
+    }
+    let profile: crate::types::Profile = match env.storage().persistent().get(&profile_key) {
+        Some(p) => p,
+        None => return false,
+    };
+    env.storage()
+        .persistent()
+        .has(&DataKey::UsernameToAddress(profile.username))
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -363,6 +471,17 @@ pub fn increment_total_creators(env: &Env) {
     env.storage()
         .instance()
         .set(&DataKey::TotalCreators, &(total + 1));
+}
+
+/// Decrements the total registered creators counter by one.
+/// Includes underflow protection (only decrements if total > 0).
+pub fn decrement_total_creators(env: &Env) {
+    let total = get_total_creators(env);
+    if total > 0 {
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalCreators, &(total - 1));
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -683,6 +802,38 @@ mod tests {
             env.storage().temporary().set(&key, &7_u32);
             set_tip_ttl(&env, &key);
             assert_eq!(env.storage().temporary().get_ttl(&key), TIP_TTL_LEDGERS);
+        });
+    }
+
+    #[test]
+    fn remove_profile_removes_entry() {
+        use soroban_sdk::testutils::Address as _;
+        let (env, id) = make_env();
+        let owner = Address::generate(&env);
+        let profile = Profile {
+            owner: owner.clone(),
+            username: String::from_str(&env, "testuser"),
+            display_name: String::from_str(&env, "Test User"),
+            bio: String::from_str(&env, ""),
+            image_url: String::from_str(&env, ""),
+            x_handle: String::from_str(&env, ""),
+            x_followers: 0,
+            x_engagement_avg: 0,
+            credit_score: 40,
+            total_tips_received: 0,
+            total_tips_count: 0,
+            balance: 0,
+            registered_at: 0,
+            updated_at: 0,
+        };
+        env.as_contract(&id, || {
+            // Set profile
+            set_profile(&env, &profile);
+            assert!(has_profile(&env, &owner));
+
+            // Remove profile
+            remove_profile(&env, &owner);
+            assert!(!has_profile(&env, &owner));
         });
     }
 }

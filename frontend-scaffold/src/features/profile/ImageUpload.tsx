@@ -32,13 +32,16 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, error, disab
   const previewUrl = getFullUrl(value);
 
   useEffect(() => {
-    if (loadError) setLoadError(null);
-  }, [value]);
+    const timeoutId = setTimeout(() => {
+      if (loadError) setLoadError(null);
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [value, loadError]);
 
   const handleTestUrl = () => {
     if (!value) return;
     const url = getFullUrl(value);
-    
+
     const img = new Image();
     img.onload = () => {
       setLoadError(null);
@@ -53,21 +56,21 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, error, disab
     <div className="space-y-4">
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
         <div className="relative pt-2">
-          <Avatar 
-            src={previewUrl} 
-            alt="Profile Preview" 
-            size="xl" 
+          <Avatar
+            src={previewUrl}
+            alt="Profile Preview"
+            size="xl"
             fallback="?"
           />
           {loadError && (
-             <div className="absolute -bottom-1 -right-1 bg-red-600 text-white p-1 rounded-full border-2 border-black" title={loadError}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-             </div>
+            <div className="absolute -bottom-1 -right-1 bg-red-600 text-white p-1 rounded-full border-2 border-black" title={loadError}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
           )}
         </div>
-        
+
         <div className="flex-1 w-full space-y-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="flex-1">
@@ -81,10 +84,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, error, disab
               />
             </div>
             <div className="mb-[2px]">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="md" 
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
                 onClick={handleTestUrl}
                 disabled={disabled || !value}
                 className="whitespace-nowrap h-[52px]"

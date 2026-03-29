@@ -6,6 +6,7 @@ use crate::errors::ContractError;
 use crate::events;
 use crate::storage;
 use crate::types::Profile;
+use crate::validation;
 
 /// Register a new creator profile.
 ///
@@ -49,26 +50,12 @@ pub fn register_profile(
         return Err(ContractError::NotInitialized);
     }
 
-    // --- Input validation ---
+    // --- Input validation (centralized in validation module) ---
 
-    // Username: 3-32 chars, [a-z0-9_], must start with a letter.
-    crate::validation::validate_username(&username)?;
-
-    // Display name: 1-64 characters, non-empty.
-    let dn_len = display_name.len();
-    if dn_len == 0 || dn_len > 64 {
-        return Err(ContractError::InvalidDisplayName);
-    }
-
-    // Bio: max 280 characters.
-    if bio.len() > 280 {
-        return Err(ContractError::MessageTooLong);
-    }
-
-    // Image URL: max 256 characters.
-    if image_url.len() > 256 {
-        return Err(ContractError::InvalidImageUrl);
-    }
+    validation::validate_username(&username)?;
+    validation::validate_display_name(&display_name)?;
+    validation::validate_bio(&bio)?;
+    validation::validate_image_url(&image_url)?;
 
     // --- Duplicate checks ---
 
@@ -106,6 +93,10 @@ pub fn register_profile(
     storage::set_profile(env, &profile);
     storage::set_username_address(env, &username, &caller);
     storage::increment_total_creators(env);
+
+    // Bump TTL for both Profile and UsernameToAddress together.
+    storage::bump_profile_ttl(env, &caller);
+    storage::bump_username_ttl(env, &username);
 
     // Emit ProfileRegistered event.
     events::emit_profile_registered(env, &caller, &username);
@@ -163,7 +154,60 @@ pub fn update_profile(
 
     storage::set_profile(env, &profile);
 
+    // Bump TTL for both Profile and UsernameToAddress together.
+    storage::bump_profile_ttl(env, &caller);
+    storage::bump_username_ttl(env, &profile.username);
+
     events::emit_profile_updated(env, &caller);
+
+    Ok(())
+}
+
+/// Deregister the caller's profile, permanently removing it from the platform.
+///
+/// # Requirements
+/// - Caller must have a registered profile
+/// - Caller's balance must be zero (all tips withdrawn)
+/// - Contract must not be paused
+///
+/// # Effects
+/// - Removes profile from persistent storage
+/// - Removes username reverse-lookup entry
+/// - Removes creator from leaderboard (if present)
+/// - Decrements total creators counter
+/// - Emits ProfileDeregistered event
+///
+/// # Errors
+/// - [`ContractError::NotRegistered`] - Caller has no profile
+/// - [`ContractError::BalanceNotZero`] - Caller has unwithdrawn tips
+/// - [`ContractError::ContractPaused`] - Contract is paused
+pub fn deregister_profile(env: &Env, caller: Address) -> Result<(), ContractError> {
+    // 4.1: Authorization check, extend TTL, and check pause state
+    caller.require_auth();
+    storage::extend_instance_ttl(env);
+    crate::admin::require_not_paused(env)?;
+
+    // 4.2: Profile existence validation
+    if !storage::has_profile(env, &caller) {
+        return Err(ContractError::NotRegistered);
+    }
+
+    // 4.3: Balance validation
+    let profile = storage::get_profile(env, &caller);
+    if profile.balance > 0 {
+        return Err(ContractError::BalanceNotZero);
+    }
+
+    // 4.4: Storage cleanup operations
+    storage::remove_profile(env, &caller);
+    storage::remove_username_address(env, &profile.username);
+    storage::decrement_total_creators(env);
+
+    // 4.5: Leaderboard removal
+    crate::leaderboard::remove_from_leaderboard(env, &caller);
+
+    // 4.6: Event emission
+    events::emit_profile_deregistered(env, &caller, &profile.username);
 
     Ok(())
 }

@@ -53,6 +53,7 @@ pub fn initialize(
     storage::set_native_token(env, native_token);
     storage::set_paused(env, false);
     storage::set_min_tip_amount(env, 1_000_000_i128);
+    storage::set_version(env, crate::CONTRACT_VERSION);
 
     // Initialise counters to zero so reads never return None.
     env.storage()
@@ -241,6 +242,57 @@ pub fn set_admin(env: &Env, caller: &Address, new_admin: &Address) -> Result<(),
     Ok(())
 }
 
+/// Propose a new admin. Step 1 of the two-step admin transfer. Current admin only.
+pub fn propose_admin(
+    env: &Env,
+    caller: &Address,
+    new_admin: &Address,
+) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
+    storage::set_pending_admin(env, new_admin);
+    events::emit_admin_proposed(env, caller, new_admin);
+    Ok(())
+}
+
+/// Accept a pending admin proposal. Step 2 of the two-step admin transfer.
+/// Only the proposed admin can call this.
+pub fn accept_admin(env: &Env, caller: &Address) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    if !storage::is_initialized(env) {
+        return Err(ContractError::NotInitialized);
+    }
+    let pending = storage::get_pending_admin(env).ok_or(ContractError::NoPendingAdmin)?;
+    if caller != &pending {
+        return Err(ContractError::NotAuthorized);
+    }
+    caller.require_auth();
+    storage::set_admin(env, caller);
+    storage::remove_pending_admin(env);
+    events::emit_admin_accepted(env, caller);
+    Ok(())
+}
+
+/// Cancel a pending admin proposal. Current admin only.
+pub fn cancel_admin_proposal(env: &Env, caller: &Address) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
+    if storage::get_pending_admin(env).is_none() {
+        return Err(ContractError::NoPendingAdmin);
+    }
+    storage::remove_pending_admin(env);
+    events::emit_admin_proposal_cancelled(env, caller);
+    Ok(())
+}
+
+/// Return the pending admin address, or `None` if no proposal is active.
+pub fn get_pending_admin(env: &Env) -> Result<Option<Address>, ContractError> {
+    if !storage::is_initialized(env) {
+        return Err(ContractError::NotInitialized);
+    }
+    Ok(storage::get_pending_admin(env))
+}
+
 pub fn pause(env: &Env, caller: &Address) -> Result<(), ContractError> {
     storage::extend_instance_ttl(env);
     require_admin(env, caller)?;
@@ -266,5 +318,20 @@ pub fn set_min_tip_amount(env: &Env, caller: &Address, amount: i128) -> Result<(
     let old = storage::get_min_tip_amount(env);
     storage::set_min_tip_amount(env, amount);
     events::emit_min_tip_amount_updated(env, old, amount);
+    Ok(())
+}
+
+/// Upgrade the contract to a new WASM hash. Admin only.
+pub fn upgrade(
+    env: &Env,
+    caller: &Address,
+    new_wasm_hash: &soroban_sdk::BytesN<32>,
+) -> Result<(), ContractError> {
+    storage::extend_instance_ttl(env);
+    require_admin(env, caller)?;
+    env.deployer()
+        .update_current_contract_wasm(new_wasm_hash.clone());
+    let new_version = storage::get_version(env) + 1;
+    storage::set_version(env, new_version);
     Ok(())
 }

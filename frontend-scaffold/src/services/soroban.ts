@@ -34,6 +34,7 @@ export const XLM_DECIMALS = 7;
 
 export const RPC_URLS: { [key: string]: string } = {
   TESTNET: "https://soroban-testnet.stellar.org/",
+  PUBLIC: "https://soroban-rpc.mainnet.stellar.gateway.fm/",
 };
 
 // Can be used whenever you need an Address argument for a contract method
@@ -41,14 +42,41 @@ export const accountToScVal = (account: string) =>
   new Address(account).toScVal();
 
 // Can be used whenever you need an i128 argument for a contract method
-export const numberToI128 = (value: number): xdr.ScVal =>
+export const numberToI128 = (value: number | bigint): xdr.ScVal =>
   nativeToScVal(value, { type: "i128" });
 
-// Get a server configfured for a specific network
-export const getServer = (networkDetails: NetworkDetails) =>
-  new SorobanRpc.Server(RPC_URLS[networkDetails.network], {
+// Get a server configured for a specific network
+export const getServer = (networkDetails: NetworkDetails) => {
+  // Check for environment variable override first
+  const envRpcUrl = import.meta.env.VITE_SOROBAN_RPC_URL;
+  
+  let rpcUrl: string;
+  
+  if (envRpcUrl) {
+    rpcUrl = envRpcUrl;
+    console.log(`Using RPC URL from environment: ${rpcUrl}`);
+  } else {
+    rpcUrl = RPC_URLS[networkDetails.network];
+    
+    if (!rpcUrl) {
+      console.warn(
+        `No RPC URL configured for network: ${networkDetails.network}. ` +
+        `Available networks: ${Object.keys(RPC_URLS).join(", ")}. ` +
+        `Set VITE_SOROBAN_RPC_URL environment variable to override.`
+      );
+      throw new Error(
+        `RPC URL not found for network: ${networkDetails.network}. ` +
+        `Please configure VITE_SOROBAN_RPC_URL or use a supported network.`
+      );
+    }
+    
+    console.log(`Using default RPC URL for ${networkDetails.network}: ${rpcUrl}`);
+  }
+  
+  return new SorobanRpc.Server(rpcUrl, {
     allowHttp: networkDetails.networkUrl.startsWith("http://"),
   });
+};
 
 // Get a TransactionBuilder configured with our public key
 export const getTxBuilder = async (
@@ -100,22 +128,18 @@ export const submitTx = async (
   if (sendResponse.status === SendTxStatus.Pending) {
     let txResponse = await server.getTransaction(sendResponse.hash);
 
-    // Poll this until the status is not "NOT_FOUND"
     while (
       txResponse.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND
     ) {
       // See if the transaction is complete
-      // eslint-disable-next-line no-await-in-loop
       txResponse = await server.getTransaction(sendResponse.hash);
       // Wait a second
-      // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     if (txResponse.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
       return txResponse.resultXdr.toXDR("base64");
     }
-    // eslint-disable-next-line no-else-return
   }
   throw new Error(
     `Unabled to submit transaction, status: ${sendResponse.status}`,
@@ -260,8 +284,8 @@ export const getEstimatedFee = async (
   // 'classic' tx fees are measured as the product of tx.fee * 'number of operations', In soroban contract tx,
   // there can only be single operation in the tx, so can make simplification
   // of total classic fees for the soroban transaction will be equal to incoming tx.fee + minResourceFee.
-  const classicFeeNum = parseInt(raw.fee, 10) || 0;
-  const minResourceFeeNum = parseInt(simResponse.minResourceFee, 10) || 0;
+  const classicFeeNum = BigInt(raw.fee || "0");
+  const minResourceFeeNum = BigInt(simResponse.minResourceFee || "0");
   const fee = (classicFeeNum + minResourceFeeNum).toString();
   return fee;
 };

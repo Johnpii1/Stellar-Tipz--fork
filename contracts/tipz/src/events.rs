@@ -30,6 +30,15 @@ pub fn emit_profile_updated(env: &Env, owner: &Address) {
     );
 }
 
+/// Topics : `("profile", "deregist")`
+/// Data   : `(owner: Address, username: String)`
+pub fn emit_profile_deregistered(env: &Env, owner: &Address, username: &String) {
+    env.events().publish(
+        (symbol_short!("profile"), symbol_short!("deregist")),
+        (owner.clone(), username.clone()),
+    );
+}
+
 // ── Tip events ────────────────────────────────────────────────────────────────
 
 /// Topics : `("tip", "sent")`
@@ -88,6 +97,36 @@ pub fn emit_admin_changed(env: &Env, old_admin: &Address, new_admin: &Address) {
     env.events().publish(
         (symbol_short!("admin"), symbol_short!("changed")),
         (old_admin.clone(), new_admin.clone()),
+    );
+}
+
+/// Emit an `AdminProposed` event when the current admin proposes a new admin.
+///
+/// Topic: ("admin", "proposed")
+pub fn emit_admin_proposed(env: &Env, current_admin: &Address, proposed_admin: &Address) {
+    env.events().publish(
+        (symbol_short!("admin"), symbol_short!("proposed")),
+        (current_admin.clone(), proposed_admin.clone()),
+    );
+}
+
+/// Emit an `AdminAccepted` event when the proposed admin accepts the role.
+///
+/// Topic: ("admin", "accepted")
+pub fn emit_admin_accepted(env: &Env, new_admin: &Address) {
+    env.events().publish(
+        (symbol_short!("admin"), symbol_short!("accepted")),
+        new_admin.clone(),
+    );
+}
+
+/// Emit an `AdminProposalCancelled` event when the current admin cancels a pending proposal.
+///
+/// Topic: ("admin", "canceled")
+pub fn emit_admin_proposal_cancelled(env: &Env, current_admin: &Address) {
+    env.events().publish(
+        (symbol_short!("admin"), symbol_short!("canceled")),
+        current_admin.clone(),
     );
 }
 

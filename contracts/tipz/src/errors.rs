@@ -44,6 +44,12 @@ pub enum ContractError {
     ContractPaused = 18,
     /// Tip amount is below the configured minimum
     TipBelowMinimum = 19,
+    /// Caller has non-zero balance and must withdraw tips before deregistering
+    BalanceNotZero = 20,
     /// Invalid X metrics values (e.g. unreasonable follower/engagement counts)
     InvalidXMetrics = 21,
+    /// Profile storage exists but the username→address mapping has expired (orphaned state)
+    ProfileNotActive = 22,
+    /// No pending admin proposal exists
+    NoPendingAdmin = 23,
 }

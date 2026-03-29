@@ -69,7 +69,8 @@ soroban contract invoke \
     initialize \
     --admin "$DEPLOYER_ADDR" \
     --fee_collector "$DEPLOYER_ADDR" \
-    --fee_bps 200
+    --fee_bps 200 \
+    --native_token "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
 
 echo "Contract initialized with 2% fee."
 echo ""
