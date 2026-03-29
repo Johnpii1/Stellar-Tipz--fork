@@ -30,9 +30,9 @@ const formatDate = (timestamp: number): string => {
   });
 };
 
-const toCsv = (rows: Array<{ date: string; from: string; amount: string; message: string; txHash: string }>): string => {
+const toCsv = (rows: Array<{ date: string; from: string; amount: number; message: string; txHash: string }>): string => {
   const headers = ['Date', 'From', 'Amount (XLM)', 'Message', 'TX Hash'];
-  const escapeCell = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+  const escapeCell = (value: string | number): string => `"${value.toString().replace(/"/g, '""')}"`;
   const body = rows.map((row) => [row.date, row.from, row.amount, row.message, row.txHash].map(escapeCell).join(','));
   return [headers.join(','), ...body].join('\n');
 };
