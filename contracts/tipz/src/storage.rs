@@ -283,6 +283,13 @@ pub fn remove_profile(env: &Env, address: &Address) {
         .remove(&DataKey::Profile(address.clone()));
 }
 
+/// Remove a username reverse-lookup entry from persistent storage.
+pub fn remove_username_address(env: &Env, username: &String) {
+    env.storage()
+        .persistent()
+        .remove(&DataKey::UsernameToAddress(username.clone()));
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Username reverse lookup
 // ──────────────────────────────────────────────────────────────────────────────
