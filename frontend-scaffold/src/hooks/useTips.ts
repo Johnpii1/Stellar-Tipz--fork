@@ -24,9 +24,9 @@ export const useTips = (address: string, role: 'creator' | 'tipper' = 'creator',
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
 
   const isFetchingRef = useRef(false);
+  const offsetRef = useRef(0);
 
   const fetchTips = useCallback(async (isLoadMore = false) => {
     if (!address || isFetchingRef.current) return;
@@ -36,8 +36,12 @@ export const useTips = (address: string, role: 'creator' | 'tipper' = 'creator',
       const filteredMocks = mockTips.filter(t => 
         role === 'creator' ? t.to === address : t.from === address
       );
-      setTips(filteredMocks.slice(0, isLoadMore ? offset + limit : limit));
+      const currentOffset = isLoadMore ? offsetRef.current : 0;
+      const nextOffset = currentOffset + limit;
+
+      setTips(filteredMocks.slice(0, nextOffset));
       setTotalCount(filteredMocks.length);
+      offsetRef.current = nextOffset;
       setLoading(false);
       return;
     }
@@ -47,7 +51,7 @@ export const useTips = (address: string, role: 'creator' | 'tipper' = 'creator',
     setError(null);
 
     try {
-      const currentOffset = isLoadMore ? offset : 0;
+      const currentOffset = isLoadMore ? offsetRef.current : 0;
       
       const [fetchedTips, count] = await Promise.all([
         role === 'creator' 
@@ -60,11 +64,10 @@ export const useTips = (address: string, role: 'creator' | 'tipper' = 'creator',
 
       if (isLoadMore) {
         setTips(prev => [...prev, ...fetchedTips]);
-        setOffset(prev => prev + limit);
       } else {
         setTips(fetchedTips);
-        setOffset(limit);
       }
+      offsetRef.current = isLoadMore ? currentOffset + limit : limit;
       setTotalCount(count);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tips');
@@ -72,16 +75,16 @@ export const useTips = (address: string, role: 'creator' | 'tipper' = 'creator',
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [address, role, limit, offset, getRecentTips, getTipsByTipper, getCreatorTipCount, getTipperTipCount]);
+  }, [address, role, limit, getRecentTips, getTipsByTipper, getCreatorTipCount, getTipperTipCount]);
 
   useEffect(() => {
     setTips([]);
-    setOffset(0);
+    offsetRef.current = 0;
     fetchTips(false);
   }, [address, role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(() => {
-    setOffset(0);
+    offsetRef.current = 0;
     fetchTips(false);
   }, [fetchTips]);
 
