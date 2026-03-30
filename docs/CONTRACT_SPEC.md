@@ -46,11 +46,12 @@ pub struct Profile {
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct Tip {
-    pub from: Address,         // Tipper's address
-    pub to: Address,           // Creator's address
-    pub amount: i128,          // Tip amount (in stroops)
-    pub message: String,       // Optional message (max 280 chars)
-    pub timestamp: u64,        // Ledger timestamp
+    pub id: u32,              // Unique tip ID
+    pub tipper: Address,      // Tipper's address
+    pub creator: Address,     // Creator's address
+    pub amount: i128,         // Tip amount (in stroops)
+    pub message: String,      // Optional message (max 280 chars)
+    pub timestamp: u64,       // Timestamp of the tip
 }
 ```
 
