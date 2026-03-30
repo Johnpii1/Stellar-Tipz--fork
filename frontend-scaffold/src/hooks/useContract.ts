@@ -26,6 +26,7 @@ import {
   getCreditTier as calculateCreditTier,
 } from '../types/contract';
 import { ProfileFormData } from '../types/profile';
+import { xlmToStroop } from '../helpers/format';
 
 /**
  * Safely converts a numeric string to a BigInt.
@@ -281,13 +282,16 @@ export const useContract = () => {
       TESTNET_DETAILS.networkPassphrase
     );
 
+    // Convert XLM amount to stroops before sending to contract
+    const stroopAmount = xlmToStroop(amount).toString();
+
     const tx = txBuilder
       .addOperation(
         contract.call(
           "send_tip",
           accountToScVal(wallet.publicKey),
           accountToScVal(creator),
-          numberToI128(safeStringToBigInt(amount)),
+          numberToI128(safeStringToBigInt(stroopAmount)),
           nativeToScVal(message)
         )
       )
@@ -310,12 +314,15 @@ export const useContract = () => {
       TESTNET_DETAILS.networkPassphrase
     );
 
+    // Convert XLM amount to stroops before sending to contract
+    const stroopAmount = xlmToStroop(amount).toString();
+
     const tx = txBuilder
       .addOperation(
         contract.call(
           "withdraw_tips",
           accountToScVal(wallet.publicKey),
-          numberToI128(safeStringToBigInt(amount))
+          numberToI128(safeStringToBigInt(stroopAmount))
         )
       )
       .setTimeout(TimeoutInfinite)
