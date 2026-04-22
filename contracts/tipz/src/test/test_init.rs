@@ -105,7 +105,7 @@ fn test_initialize_success() {
 
 #[test]
 fn test_initialize_already_initialized() {
-    let (env, client, admin, fee_collector, native_token) = setup();
+    let (_env, client, admin, fee_collector, native_token) = setup();
 
     client.initialize(&admin, &fee_collector, &200_u32, &native_token);
 

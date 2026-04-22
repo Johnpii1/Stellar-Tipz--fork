@@ -9,7 +9,7 @@ use soroban_sdk::{
 
 use crate::errors::ContractError;
 use crate::storage::{self, DataKey};
-use crate::types::Profile;
+use crate::types::{BatchSkip, Profile};
 use crate::TipzContract;
 use crate::TipzContractClient;
 
@@ -423,7 +423,13 @@ fn test_batch_update_skips_unregistered() {
     // Should not error — unregistered entry is skipped and returned
     let skipped = ctx.client.batch_update_x_metrics(&ctx.admin, &updates);
     assert_eq!(skipped.len(), 1);
-    assert_eq!(skipped.get(0).unwrap(), unregistered);
+    assert_eq!(
+        skipped.get(0).unwrap(),
+        BatchSkip {
+            address: unregistered.clone(),
+            reason: 0,
+        }
+    );
 
     // Registered creator was updated
     let profile = ctx.env.as_contract(&ctx.contract_id, || {
@@ -450,8 +456,20 @@ fn test_batch_update_returns_all_skipped_addresses() {
     ];
     let skipped = ctx.client.batch_update_x_metrics(&ctx.admin, &updates);
     assert_eq!(skipped.len(), 2);
-    assert_eq!(skipped.get(0).unwrap(), unreg1);
-    assert_eq!(skipped.get(1).unwrap(), unreg2);
+    assert_eq!(
+        skipped.get(0).unwrap(),
+        BatchSkip {
+            address: unreg1.clone(),
+            reason: 0,
+        }
+    );
+    assert_eq!(
+        skipped.get(1).unwrap(),
+        BatchSkip {
+            address: unreg2.clone(),
+            reason: 0,
+        }
+    );
 
     // Registered creator was still updated
     let profile = ctx.env.as_contract(&ctx.contract_id, || {
@@ -502,7 +520,13 @@ fn test_batch_update_preview_returns_skipped() {
         .client
         .batch_update_x_metrics_preview(&ctx.admin, &updates);
     assert_eq!(skipped.len(), 1);
-    assert_eq!(skipped.get(0).unwrap(), unregistered);
+    assert_eq!(
+        skipped.get(0).unwrap(),
+        BatchSkip {
+            address: unregistered.clone(),
+            reason: 0,
+        }
+    );
 
     // Verify no state was modified (profile should still have original values)
     let profile = ctx.env.as_contract(&ctx.contract_id, || {
@@ -657,7 +681,7 @@ fn test_cancel_admin_proposal_non_admin_fails() {
 
 #[test]
 fn test_cancel_admin_proposal_no_proposal_fails() {
-    let (env, client, admin) = setup_initialized();
+    let (_env, client, admin) = setup_initialized();
 
     let result = client.try_cancel_admin_proposal(&admin);
     assert_eq!(result, Err(Ok(ContractError::NoPendingAdmin)));

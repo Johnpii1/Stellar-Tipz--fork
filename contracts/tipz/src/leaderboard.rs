@@ -396,7 +396,7 @@ mod tests {
         let contract_id = env.register_contract(None, TipzContract);
         env.as_contract(&contract_id, || {
             let addr = Address::generate(&env);
-            let mut entries = Vec::new(&env);
+            let entries = Vec::new(&env);
             save_entries(&env, &entries);
 
             let profile = make_profile(&env, addr.clone(), "user", 100);
