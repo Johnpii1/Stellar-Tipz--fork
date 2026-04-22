@@ -4,6 +4,7 @@ import { useContract } from '@/hooks';
 import { useToastStore } from '@/store/toastStore';
 import { ContractStats } from '@/types/contract';
 import { categorizeError, ERRORS } from '@/helpers/error';
+import { env } from '@/helpers/env';
 
 const FALLBACK_STATS = {
   feePct: 2,
@@ -25,6 +26,10 @@ const StatsSection: React.FC = () => {
   const { getStats } = useContract();
 
   useEffect(() => {
+    if (!env.contractId) {
+      return;
+    }
+
     getStats()
       .then(setStats)
       .catch((err) => {

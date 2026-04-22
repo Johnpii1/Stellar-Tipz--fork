@@ -9,15 +9,20 @@ import Skeleton from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ErrorState from '@/components/shared/ErrorState';
 import { categorizeError } from '@/helpers/error';
+import { env } from '@/helpers/env';
 
 export default function TopCreatorsSection() {
   const [creators, setCreators] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(env.contractId));
   const [error, setError] = useState<string | null>(null);
   const { getLeaderboard } = useContract();
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!env.contractId) {
+      return;
+    }
+
     let active = true;
     getLeaderboard(5)
       .then((data) => {
@@ -39,6 +44,13 @@ export default function TopCreatorsSection() {
   }, [getLeaderboard]);
 
   const handleRetry = useCallback(() => {
+    if (!env.contractId) {
+      setCreators([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     getLeaderboard(5)
