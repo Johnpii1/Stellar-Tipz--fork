@@ -23,12 +23,13 @@ import EarningsTab from "./EarningsTab";
 import OverviewTab from "./OverviewTab";
 import SettingsTab from "./SettingsTab";
 import TipsTab from "./TipsTab";
+import FavoritesList from "./FavoritesList";
 
 const DashboardPage: React.FC = () => {
   usePageTitle("Dashboard");
 
   const { connected } = useWalletStore();
-  const { profile, loading, error, refetch } = useDashboard();
+  const { profile, tips, loading, error, refetch } = useDashboard();
   const { latestTip, markSeen, unseenCount } = useTipNotifications(
     profile?.owner,
   );
@@ -129,15 +130,14 @@ const DashboardPage: React.FC = () => {
       id: "overview",
       label: "Overview",
       content: (
-        <div className="pt-6">
-          <div className="space-y-8">
-            <OverviewTab />
-            <div className="border-4 border-black bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-              <EarningsChart tips={tips} />
-            </div>
+        <div className="pt-6 space-y-8">
           <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
             <OverviewTab />
             <TipQRCode username={creator.username} />
+          </div>
+          <div className="border-4 border-black bg-white p-6 shadow-brutalist">
+            <h3 className="text-xl font-black uppercase mb-4">Earnings History</h3>
+            <EarningsChart tips={tips} />
           </div>
         </div>
       ),
@@ -155,6 +155,15 @@ const DashboardPage: React.FC = () => {
       id: "earnings",
       label: "Earnings",
       content: <EarningsTab />,
+    },
+    {
+      id: "favorites",
+      label: "Favorites",
+      content: (
+        <div className="pt-6">
+          <FavoritesList />
+        </div>
+      ),
     },
     {
       id: "settings",
