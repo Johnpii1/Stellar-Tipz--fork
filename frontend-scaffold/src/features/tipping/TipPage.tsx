@@ -80,12 +80,7 @@ const TipPage: React.FC = () => {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const skipConfirmation = localStorage.getItem('tipz_skip_confirmation') === 'true';
-    if (skipConfirmation) {
-      confirmAndSign();
-    } else {
-      goToConfirm(amount, message);
-    }
+    goToConfirm(amount, message);
   };
 
   useEffect(() => {
