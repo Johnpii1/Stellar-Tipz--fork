@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, Wallet } from "lucide-react";
+import { Bell, LayoutDashboard, Wallet, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import PageContainer from "@/components/layout/PageContainer";
@@ -7,24 +7,34 @@ import ErrorState from "@/components/shared/ErrorState";
 import WalletConnect from "@/components/shared/WalletConnect";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
-import Loader from "@/components/ui/Loader";
 import Tabs from "@/components/ui/Tabs";
 import { categorizeError } from "@/helpers/error";
 import { useDashboard } from "@/hooks/useDashboard";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useTipNotifications } from "@/hooks/useTipNotifications";
 import { useWalletStore } from "@/store/walletStore";
+import { stroopToXlm } from "@/helpers/format";
+import TipQRCode from "@/features/profile/TipQRCode";
+import Skeleton from "@/components/ui/Skeleton";
+import DashboardStatsSkeleton from "./DashboardStatsSkeleton";
+import EarningsChart from "./EarningsChart";
 
 import EarningsTab from "./EarningsTab";
 import OverviewTab from "./OverviewTab";
 import SettingsTab from "./SettingsTab";
 import TipsTab from "./TipsTab";
-
+import FavoritesList from "./FavoritesList";
+import { DashboardProvider } from "./DashboardContext";
 
 const DashboardPage: React.FC = () => {
   usePageTitle("Dashboard");
 
   const { connected } = useWalletStore();
-  const { profile, loading, error, refetch } = useDashboard();
+  const dashboard = useDashboard();
+  const { profile, loading, error, refetch, tips } = dashboard;
+  const { latestTip, markSeen, unseenCount } = useTipNotifications(
+    profile?.owner,
+  );
 
   if (!connected) {
     return (
@@ -54,9 +64,26 @@ const DashboardPage: React.FC = () => {
     return (
       <PageContainer
         maxWidth="xl"
-        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 py-10"
+        className="space-y-8 py-10"
+        aria-busy="true"
       >
-        <Loader size="lg" text="Loading dashboard data..." />
+        <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <Skeleton variant="text" width="200px" height="12px" />
+            <div className="mt-2">
+              <Skeleton variant="text" width="260px" height="34px" />
+            </div>
+          </div>
+          <Skeleton variant="rect" width="220px" height="44px" />
+        </section>
+
+        <DashboardStatsSkeleton />
+
+        <div role="status" aria-busy="true" className="border-4 border-black bg-white p-6 shadow-brutalist space-y-3">
+          <Skeleton variant="text" width="180px" height="18px" />
+          <Skeleton variant="text" width="90%" height="14px" />
+          <Skeleton variant="text" width="80%" height="14px" />
+        </div>
       </PageContainer>
     );
   }
@@ -64,7 +91,7 @@ const DashboardPage: React.FC = () => {
   if (error && !profile) {
     return (
       <PageContainer maxWidth="xl" className="py-20">
-        <ErrorState category={categorizeError(error)} onRetry={refetch} />
+        <ErrorState category={categorizeError(error).category} onRetry={refetch} />
       </PageContainer>
     );
   }
@@ -105,8 +132,15 @@ const DashboardPage: React.FC = () => {
       id: "overview",
       label: "Overview",
       content: (
-        <div className="pt-6">
-          <OverviewTab />
+        <div className="pt-6 space-y-8">
+          <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+            <OverviewTab />
+            <TipQRCode username={creator.username} />
+          </div>
+          <div className="border-4 border-black bg-white p-6 shadow-brutalist">
+            <h3 className="text-xl font-black uppercase mb-4">Earnings History</h3>
+            <EarningsChart tips={tips} />
+          </div>
         </div>
       ),
     },
@@ -125,6 +159,15 @@ const DashboardPage: React.FC = () => {
       content: <EarningsTab />,
     },
     {
+      id: "favorites",
+      label: "Favorites",
+      content: (
+        <div className="pt-6">
+          <FavoritesList />
+        </div>
+      ),
+    },
+    {
       id: "settings",
       label: "Settings",
       content: (
@@ -136,6 +179,7 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
+    <DashboardProvider value={dashboard}>
     <PageContainer maxWidth="xl" className="space-y-8 py-10">
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
@@ -164,8 +208,34 @@ const DashboardPage: React.FC = () => {
         </div>
       </section>
 
+      {latestTip && unseenCount > 0 && (
+        <div className="flex flex-col gap-3 border-3 border-black bg-yellow-100 p-4 shadow-brutalist sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Bell size={22} className="mt-1 shrink-0" />
+            <div>
+              <p className="text-sm font-black uppercase">New tip received</p>
+              <p className="text-sm font-bold text-gray-700">
+                {stroopToXlm(latestTip.amount)} XLM from{" "}
+                {latestTip.tipper.slice(0, 6)}...{latestTip.tipper.slice(-6)}
+                {latestTip.message ? ` - ${latestTip.message}` : ""}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={<X size={16} />}
+            onClick={markSeen}
+          >
+            Mark seen
+          </Button>
+        </div>
+      )}
+
       <Tabs tabs={tabs} defaultTab="overview" />
     </PageContainer>
+    </DashboardProvider>
   );
 };
 

@@ -5,6 +5,7 @@ import { useToastStore } from '@/store/toastStore';
 import { ContractStats } from '@/types/contract';
 import { categorizeError, ERRORS } from '@/helpers/error';
 import { env } from '@/helpers/env';
+import Skeleton from '@/components/ui/Skeleton';
 
 const FALLBACK_STATS = {
   feePct: 2,
@@ -52,7 +53,7 @@ const StatsSection: React.FC = () => {
         console.warn('[StatsSection] Could not fetch live platform stats:', err);
         const { addToast } = useToastStore.getState();
         addToast({
-          message: categorizeError(err) === 'network' ? ERRORS.NETWORK : 'Could not fetch live platform stats.',
+          message: categorizeError(err).category === 'network' ? ERRORS.NETWORK : 'Could not fetch live platform stats.',
           type: 'error',
         });
       });
@@ -80,19 +81,31 @@ const StatsSection: React.FC = () => {
         >
           <div className="card-brutalist text-center">
             <div className="text-4xl font-black mb-1">
-              {stats ? stats.totalCreators.toLocaleString() : '—'}
+              {stats ? stats.totalCreators.toLocaleString() : (
+                <div className="flex justify-center" role="status" aria-busy="true">
+                  <Skeleton variant="text" width="140px" height="40px" />
+                </div>
+              )}
             </div>
             <div className="text-sm uppercase font-bold tracking-wide">Creators</div>
           </div>
           <div className="card-brutalist text-center">
             <div className="text-4xl font-black mb-1">
-              {stats ? stats.totalTipsCount.toLocaleString() : '—'}
+              {stats ? stats.totalTipsCount.toLocaleString() : (
+                <div className="flex justify-center" role="status" aria-busy="true">
+                  <Skeleton variant="text" width="140px" height="40px" />
+                </div>
+              )}
             </div>
             <div className="text-sm uppercase font-bold tracking-wide">Tips Sent</div>
           </div>
           <div className="card-brutalist text-center">
             <div className="text-4xl font-black mb-1">
-              {stats ? `${stats.feeBps / 100}%` : '—'}
+              {stats ? `${stats.feeBps / 100}%` : (
+                <div className="flex justify-center" role="status" aria-busy="true">
+                  <Skeleton variant="text" width="110px" height="40px" />
+                </div>
+              )}
             </div>
             <div className="text-sm uppercase font-bold tracking-wide">Platform Fee</div>
           </div>

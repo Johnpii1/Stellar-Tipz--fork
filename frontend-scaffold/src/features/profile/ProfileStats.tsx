@@ -1,6 +1,7 @@
 import React from 'react';
 import AmountDisplay from '@/components/shared/AmountDisplay';
 import Card from '@/components/ui/Card';
+import Skeleton from '@/components/ui/Skeleton';
 
 interface ProfileStatsProps {
   balance: string;
@@ -50,3 +51,20 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
 };
 
 export default ProfileStats;
+
+export const ProfileStatsSkeleton: React.FC<{ className?: string }> = ({ className = '' }) => {
+  return (
+    <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-4 ${className}`}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} role="status" aria-busy="true">
+          <Card padding="md">
+            <div className="space-y-2">
+              <Skeleton variant="text" width="55%" height="10px" />
+              <Skeleton variant="text" width="70%" height="28px" />
+            </div>
+          </Card>
+        </div>
+      ))}
+    </div>
+  );
+};

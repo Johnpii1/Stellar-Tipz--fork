@@ -4,6 +4,7 @@ import Card from "../ui/Card";
 import AmountDisplay from "./AmountDisplay";
 import type { Tip } from "../../types";
 import { truncateString } from "../../helpers/format";
+import Skeleton from "../ui/Skeleton";
 
 interface TipCardProps {
   tip: Tip;
@@ -103,3 +104,36 @@ const TipCard: React.FC<TipCardProps> = ({
 };
 
 export default TipCard;
+
+export const TipCardSkeleton: React.FC = () => {
+  return (
+    <div role="status" aria-busy="true" className="block w-full">
+      <Card className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Skeleton variant="circle" width={40} height={40} />
+            <div className="min-w-0 space-y-2">
+              <Skeleton variant="text" width="50px" height={10} />
+              <Skeleton variant="text" width="180px" height={14} />
+              <Skeleton variant="text" width="140px" height={12} />
+            </div>
+          </div>
+
+          <div className="flex-shrink-0 border-2 border-black bg-yellow-100 px-3 py-2">
+            <Skeleton variant="text" width="72px" height={18} />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton variant="text" width="100%" height={14} />
+          <Skeleton variant="text" width="85%" height={14} />
+        </div>
+
+        <div className="flex items-center justify-between border-t-2 border-dashed border-black pt-3">
+          <Skeleton variant="text" width="90px" height={10} />
+          <Skeleton variant="text" width="80px" height={12} />
+        </div>
+      </Card>
+    </div>
+  );
+};

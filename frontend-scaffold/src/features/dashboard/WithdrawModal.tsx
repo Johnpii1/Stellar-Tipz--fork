@@ -12,14 +12,24 @@ interface WithdrawModalProps {
   isOpen: boolean;
   balance: string;
   feeBps: number;
+  minWithdrawal?: number | string;
   onClose: () => void;
+  onSuccess?: (params: {
+    amountXlm: string;
+    amountStroops: string;
+    txHash: string;
+  }) => void;
+  onFailure?: () => void;
 }
 
 const WithdrawModal: React.FC<WithdrawModalProps> = ({
   isOpen,
   balance,
   feeBps,
+  minWithdrawal,
   onClose,
+  onSuccess,
+  onFailure,
 }) => {
   const { withdrawTips, withdrawing, error, txHash, reset } = useTipz();
   const [amount, setAmount] = useState("");
@@ -58,12 +68,19 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({
       return "Withdrawal amount must be greater than zero.";
     }
 
+    if (minWithdrawal !== undefined) {
+      const minWNumber = new BigNumber(minWithdrawal);
+      if (parsedAmount.lt(minWNumber)) {
+        return `Minimum withdrawal amount is ${minWithdrawal} XLM.`;
+      }
+    }
+
     if (parsedAmount.gt(balanceXlm)) {
       return "Withdrawal amount cannot exceed your available balance.";
     }
 
     return null;
-  }, [amount, parsedAmount, balanceXlm]);
+  }, [amount, parsedAmount, balanceXlm, minWithdrawal]);
 
   const requestedStroops = useMemo(() => {
     if (!parsedAmount || amountError) {
@@ -79,9 +96,15 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({
     }
 
     try {
-      await withdrawTips(amount);
+      const hash = await withdrawTips(amount);
+      onSuccess?.({
+        amountXlm: amount,
+        amountStroops: requestedStroops,
+        txHash: hash,
+      });
     } catch (err) {
       console.error("Withdrawal failed:", err);
+      onFailure?.();
     }
   };
 

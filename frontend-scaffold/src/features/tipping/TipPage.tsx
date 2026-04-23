@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { ArrowRight, HeartHandshake, MessageSquare, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  HeartHandshake,
+  MessageSquare,
+  Wallet,
+} from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import PageContainer from "../../components/layout/PageContainer";
@@ -19,13 +24,16 @@ import TipPageSkeleton from "./TipPageSkeleton";
 import TipAmountInput from "./TipAmountInput";
 import TipResult from "./TipResult";
 import RecentTips from "./RecentTips";
-import TipConfirm from "./TipConfirm";
+import { TipConfirmationModal } from "./TipConfirmationModal";
 import { useTipFlow } from "./useTipFlow";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import CreatorNotFound from "./CreatorNotFound";
+import TipAmountPresets from "./TipAmountPresets";
+import { useNavigate } from "react-router-dom";
 
 const TipPage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
   const { connected, connect } = useWallet();
   const [amount, setAmount] = useState("5");
   const [message, setMessage] = useState("");
@@ -42,7 +50,7 @@ const TipPage: React.FC = () => {
       const profile = await getProfileByUsername(username);
       setCreator(profile);
     } catch (err) {
-      console.error('Failed to fetch creator:', err);
+      console.error("Failed to fetch creator:", err);
       setFetchError(String(err));
     } finally {
       setLoading(false);
@@ -53,14 +61,42 @@ const TipPage: React.FC = () => {
     fetchCreator();
   }, [fetchCreator]);
 
-  usePageTitle(loading ? "Loading..." : creator ? `Tip @${creator.username}` : "Creator Not Found");
+  usePageTitle(
+    loading
+      ? "Loading..."
+      : creator
+      ? `Tip @${creator.username}`
+      : "Creator Not Found",
+  );
 
-  const { step, goToConfirm, confirmAndSign, reset, error: flowError, txHash } = useTipFlow(creator?.owner || "");
+  const {
+    step,
+    goToConfirm,
+    confirmAndSign,
+    reset,
+    error: flowError,
+    txHash,
+  } = useTipFlow(creator?.owner || "");
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     goToConfirm(amount, message);
   };
+
+  useEffect(() => {
+    if (step === "success" && txHash && creator) {
+      navigate("/receipt", { 
+        state: { 
+          tipData: { 
+            amount, 
+            message, 
+            txHash, 
+            recipient: creator 
+          } 
+        } 
+      });
+    }
+  }, [step, txHash, creator, amount, message, navigate]);
 
   if (loading) {
     return <TipPageSkeleton />;
@@ -70,12 +106,12 @@ const TipPage: React.FC = () => {
     if (!creator && !loading) {
       return <CreatorNotFound username={username} />;
     }
-    
+
     return (
       <PageContainer maxWidth="xl" className="py-20">
-        <ErrorState 
-          category={categorizeError(fetchError || 'Not Found')} 
-          onRetry={fetchCreator} 
+        <ErrorState
+          category={categorizeError(fetchError || "Not Found")}
+          onRetry={fetchCreator}
         />
       </PageContainer>
     );
@@ -97,34 +133,47 @@ const TipPage: React.FC = () => {
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-500">
                   Tip creator
                 </p>
-                <h1 className="text-3xl font-black uppercase">{creator.displayName}</h1>
-                <p className="text-sm font-bold text-gray-600">@{creator.username}</p>
+                <h1 className="text-3xl font-black uppercase">
+                  {creator.displayName}
+                </h1>
+                <p className="text-sm font-bold text-gray-600">
+                  @{creator.username}
+                </p>
               </div>
             </div>
 
             <CreditBadge score={creator.creditScore} />
           </div>
 
-          <p className="max-w-2xl text-base leading-7 text-gray-700">{creator.bio}</p>
+          <p className="max-w-2xl text-base leading-7 text-gray-700">
+            {creator.bio}
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="border-2 border-black bg-yellow-100 p-4">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-600">
                 Lifetime tips
               </p>
-              <AmountDisplay amount={creator.totalTipsReceived} className="mt-2 block text-xl" />
+              <AmountDisplay
+                amount={creator.totalTipsReceived}
+                className="mt-2 block text-xl"
+              />
             </div>
             <div className="border-2 border-black bg-white p-4">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-600">
                 Supporters
               </p>
-              <p className="mt-2 text-2xl font-black">{creator.totalTipsCount}</p>
+              <p className="mt-2 text-2xl font-black">
+                {creator.totalTipsCount}
+              </p>
             </div>
             <div className="border-2 border-black bg-white p-4">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-600">
                 X followers
               </p>
-              <p className="mt-2 text-2xl font-black">{creator.xFollowers.toLocaleString()}</p>
+              <p className="mt-2 text-2xl font-black">
+                {creator.xFollowers.toLocaleString()}
+              </p>
             </div>
           </div>
         </Card>
@@ -138,7 +187,8 @@ const TipPage: React.FC = () => {
           </div>
 
           <div className="border-2 border-black bg-yellow-100 p-4 text-sm font-bold text-gray-800">
-            Any connected wallet can send a tip. Supporters do not need to create a Stellar Tipz profile first.
+            Any connected wallet can send a tip. Supporters do not need to
+            create a Stellar Tipz profile first.
           </div>
 
           {!connected && (
@@ -153,11 +203,21 @@ const TipPage: React.FC = () => {
               txHash={txHash ?? undefined}
               amount={amount}
               creator={creator}
-              errorMessage={flowError ? (categorizeError(flowError) === 'network' ? ERRORS.NETWORK : ERRORS.CONTRACT) : undefined}
+              errorMessage={
+                flowError
+                  ? categorizeError(flowError) === "network"
+                    ? ERRORS.NETWORK
+                    : ERRORS.CONTRACT
+                  : undefined
+              }
               onPrimaryAction={reset}
             />
           ) : (
             <form className="space-y-4" onSubmit={handleSubmit}>
+              <TipAmountPresets
+                value={amount}
+                onChange={(nextAmount) => setAmount(String(nextAmount))}
+              />
               <TipAmountInput amount={amount} onChange={setAmount} />
 
               <Textarea
@@ -199,7 +259,7 @@ const TipPage: React.FC = () => {
             </form>
           )}
 
-          <TipConfirm
+          <TipConfirmationModal
             isOpen={step === "confirm"}
             onClose={reset}
             onConfirm={() => void confirmAndSign()}
@@ -213,7 +273,13 @@ const TipPage: React.FC = () => {
             <TransactionStatus
               status={step === "signing" ? "signing" : "submitting"}
               txHash={txHash ?? undefined}
-              errorMessage={flowError ? (categorizeError(flowError) === 'network' ? ERRORS.NETWORK : ERRORS.CONTRACT) : undefined}
+              errorMessage={
+                flowError
+                  ? categorizeError(flowError) === "network"
+                    ? ERRORS.NETWORK
+                    : ERRORS.CONTRACT
+                  : undefined
+              }
             />
           ) : null}
         </Card>
@@ -223,14 +289,28 @@ const TipPage: React.FC = () => {
         <Card className="space-y-4">
           <div className="flex items-center gap-3">
             <MessageSquare size={18} />
-            <h2 className="text-xl font-black uppercase">Why supporters tip here</h2>
+            <h2 className="text-xl font-black uppercase">
+              Why supporters tip here
+            </h2>
           </div>
           <ul className="space-y-3 text-sm font-medium leading-6 text-gray-700">
-            <li>Tips settle quickly on Stellar and creators keep the majority of every payment.</li>
-            <li>Every profile has a visible reputation signal through the on-chain credit score.</li>
-            <li>Supporters can pair value with a message, making each tip feel personal.</li>
+            <li>
+              Tips settle quickly on Stellar and creators keep the majority of
+              every payment.
+            </li>
+            <li>
+              Every profile has a visible reputation signal through the on-chain
+              credit score.
+            </li>
+            <li>
+              Supporters can pair value with a message, making each tip feel
+              personal.
+            </li>
           </ul>
-          <Link to="/leaderboard" className="inline-flex text-sm font-black uppercase underline">
+          <Link
+            to="/leaderboard"
+            className="inline-flex text-sm font-black uppercase underline"
+          >
             Explore the leaderboard
           </Link>
         </Card>
@@ -238,7 +318,10 @@ const TipPage: React.FC = () => {
         <Card className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-xl font-black uppercase">Recent activity</h2>
-            <Link to="/dashboard" className="text-sm font-black uppercase underline">
+            <Link
+              to="/dashboard"
+              className="text-sm font-black uppercase underline"
+            >
               View dashboard
             </Link>
           </div>

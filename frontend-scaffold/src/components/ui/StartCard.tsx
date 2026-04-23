@@ -1,4 +1,5 @@
 import React from 'react';
+import Skeleton from './Skeleton';
 
 interface ChangeProps {
   value: number;
@@ -74,3 +75,32 @@ export const StatCard: React.FC<StatCardProps> = ({
 };
 
 export default StatCard;
+
+export const StatsCardSkeleton: React.FC = () => {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      className={`
+        bg-white dark:bg-zinc-950 
+        border-4 border-black dark:border-white 
+        p-6 
+        shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] 
+        dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]
+        transition-all duration-200
+        flex flex-col
+      `}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <Skeleton variant="text" width="120px" height="14px" />
+        <Skeleton variant="rect" width="28px" height="28px" />
+      </div>
+      <Skeleton variant="text" width="70%" height="48px" className="mb-4" />
+      <div className="flex items-center gap-2">
+        <Skeleton variant="rect" width="18px" height="18px" />
+        <Skeleton variant="text" width="80px" height="14px" />
+        <Skeleton variant="text" width="110px" height="10px" />
+      </div>
+    </div>
+  );
+};

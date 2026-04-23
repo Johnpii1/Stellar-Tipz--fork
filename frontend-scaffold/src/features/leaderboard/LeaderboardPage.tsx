@@ -8,12 +8,11 @@ import CreditBadge from "../../components/shared/CreditBadge";
 import Avatar from "../../components/ui/Avatar";
 import Card from "../../components/ui/Card";
 import Pagination from "../../components/ui/Pagination";
-import Loader from "../../components/ui/Loader";
 import ErrorState from "../../components/shared/ErrorState";
 import { usePageTitle } from "@/hooks/usePageTitle";
-import type { LeaderboardEntry } from "@/types";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { categorizeError } from "@/helpers/error";
+import LeaderboardSkeleton from "./LeaderboardSkeleton";
 
 
 const PAGE_SIZE = 5;
@@ -29,6 +28,10 @@ const LeaderboardPage: React.FC = () => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     return entries.slice(startIndex, startIndex + PAGE_SIZE);
   }, [entries, currentPage]);
+
+  if (loading && entries.length === 0 && !error) {
+    return <LeaderboardSkeleton count={PAGE_SIZE} />;
+  }
 
   return (
     <PageContainer maxWidth="xl" className="space-y-8 py-10">
@@ -49,11 +52,7 @@ const LeaderboardPage: React.FC = () => {
         <div className="grid gap-4 sm:grid-cols-3">
           {error ? (
             <div className="sm:col-span-3">
-              <ErrorState category={categorizeError(error)} onRetry={refetch} />
-            </div>
-          ) : loading && entries.length === 0 ? (
-            <div className="sm:col-span-3 flex justify-center py-12">
-              <Loader size="lg" text="Loading leaderboard..." />
+              <ErrorState category={categorizeError(error).category} onRetry={refetch} />
             </div>
           ) : (
             entries.slice(0, 3).map((entry, index) => {
@@ -93,11 +92,7 @@ const LeaderboardPage: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            {loading && entries.length === 0 ? (
-              <div className="flex justify-center py-20">
-                <Loader size="lg" text="Fetching rankings..." />
-              </div>
-            ) : entries.length === 0 ? (
+            {entries.length === 0 ? (
               <div className="text-center py-20 border-2 border-dashed border-black">
                 <p className="font-black uppercase text-gray-500">No creators found on the leaderboard yet.</p>
               </div>

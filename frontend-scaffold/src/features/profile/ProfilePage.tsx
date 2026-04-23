@@ -5,18 +5,20 @@ import { Link } from "react-router-dom";
 import PageContainer from "../../components/layout/PageContainer";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
-import Loader from "../../components/ui/Loader";
 import ErrorState from "../../components/shared/ErrorState";
 import { hasPositiveBalance } from "@/helpers/balance";
 import { useProfile, useContract } from "../../hooks";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { categorizeError } from "@/helpers/error";
+import Skeleton from "@/components/ui/Skeleton";
 
 import ProfileView from "./ProfileView";
-import ProfileStats from "./ProfileStats";
+import ProfileStats, { ProfileStatsSkeleton } from "./ProfileStats";
 import ActivityFeed from "./ActivityFeed";
 import RegisterForm from "./RegisterForm";
 import WithdrawModal from "./WithdrawModal";
+import TipQRCode from "./TipQRCode";
+import EmbedCodeGenerator from "./EmbedCodeGenerator";
 
 /**
  * ProfilePage is a protected route that displays the connected user's profile.
@@ -39,17 +41,81 @@ const ProfilePage: React.FC = () => {
 
   React.useEffect(() => {
     getStats()
-      .then(stats => setFeeBps(stats.feeBps))
-      .catch(err => console.error("Failed to fetch fee bps:", err));
+      .then((stats) => setFeeBps(stats.feeBps))
+      .catch((err) => console.error("Failed to fetch fee bps:", err));
   }, [getStats]);
 
   if (loading) {
     return (
-      <PageContainer
-        maxWidth="xl"
-        className="flex items-center justify-center py-20"
-      >
-        <Loader size="lg" text="Loading profile..." />
+      <PageContainer maxWidth="xl" className="space-y-10 py-10" aria-busy="true">
+        <section role="status" aria-busy="true">
+          <div className="border-4 border-black bg-white p-6 shadow-brutalist space-y-4">
+            <div className="flex items-center gap-4">
+              <Skeleton variant="circle" width={72} height={72} />
+              <div className="flex-1 space-y-2">
+                <Skeleton variant="text" width="40%" height="22px" />
+                <Skeleton variant="text" width="55%" height="14px" />
+              </div>
+              <Skeleton variant="rect" width={110} height={40} />
+            </div>
+            <div className="space-y-2">
+              <Skeleton variant="text" width="90%" height="14px" />
+              <Skeleton variant="text" width="80%" height="14px" />
+              <Skeleton variant="text" width="70%" height="14px" />
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+          <div className="space-y-10">
+            <section className="space-y-4">
+              <Skeleton variant="text" width="220px" height="24px" />
+              <ProfileStatsSkeleton />
+            </section>
+            <section className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <Skeleton variant="text" width="220px" height="24px" />
+                <Skeleton variant="text" width="140px" height="16px" />
+              </div>
+              <Card padding="lg" className="border-4 shadow-brutalist">
+                <div className="space-y-4" role="status" aria-busy="true">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Skeleton variant="circle" width={36} height={36} />
+                        <div className="space-y-2">
+                          <Skeleton variant="text" width="180px" height="14px" />
+                          <Skeleton variant="text" width="120px" height="12px" />
+                        </div>
+                      </div>
+                      <Skeleton variant="text" width="70px" height="14px" />
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </section>
+          </div>
+
+          <aside className="space-y-6">
+            <div role="status" aria-busy="true">
+              <Card className="space-y-4 border-4 bg-gray-50 shadow-brutalist" padding="lg">
+                <Skeleton variant="text" width="160px" height="20px" />
+                <Skeleton variant="rect" width="100%" height={56} />
+                <Skeleton variant="rect" width="100%" height={56} />
+                <Skeleton variant="rect" width="100%" height={56} />
+              </Card>
+            </div>
+            <div role="status" aria-busy="true">
+              <Card className="border-4 bg-yellow-100 shadow-brutalist" padding="md">
+                <Skeleton variant="text" width="140px" height="14px" />
+                <div className="mt-2 space-y-2">
+                  <Skeleton variant="text" width="100%" height="12px" />
+                  <Skeleton variant="text" width="90%" height="12px" />
+                </div>
+              </Card>
+            </div>
+          </aside>
+        </div>
       </PageContainer>
     );
   }
@@ -57,7 +123,7 @@ const ProfilePage: React.FC = () => {
   if (error && !isRegistered) {
     return (
       <PageContainer maxWidth="xl" className="py-20">
-        <ErrorState category={categorizeError(error)} onRetry={refetch} />
+        <ErrorState category={categorizeError(error).category} onRetry={refetch} />
       </PageContainer>
     );
   }
@@ -126,10 +192,22 @@ const ProfilePage: React.FC = () => {
               <ActivityFeed address={profile.owner} limit={5} />
             </Card>
           </section>
+
+          {/* Embed Section */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-black uppercase tracking-tight">
+              Share & Embed
+            </h2>
+            <Card padding="lg" className="border-4 shadow-brutalist">
+              <EmbedCodeGenerator username={profile.username} />
+            </Card>
+          </section>
         </div>
 
         {/* Sidebar Actions */}
         <aside className="space-y-6">
+          <TipQRCode username={profile.username} />
+
           <Card
             className="space-y-4 border-4 bg-gray-50 shadow-brutalist"
             padding="lg"
