@@ -48,9 +48,10 @@ function isValidUrl(url: string): boolean {
 
 interface EditProfileFormProps {
   profile: Profile;
+  uploadedImageUrl?: string;
 }
 
-const EditProfileForm: React.FC<EditProfileFormProps> = ({ profile }) => {
+const EditProfileForm: React.FC<EditProfileFormProps> = ({ profile, uploadedImageUrl }) => {
   const [form, setForm] = useState<ProfileFormData>({
     username: profile.username,
     displayName: profile.displayName,
@@ -62,6 +63,12 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ profile }) => {
   const [txStatus, setTxStatus] = useState<TxStatus>('idle');
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
   const [txError, setTxError] = useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (uploadedImageUrl) {
+      setForm((prev) => ({ ...prev, imageUrl: uploadedImageUrl }));
+    }
+  }, [uploadedImageUrl]);
 
   const { updateProfile } = useContract();
   const { addToast } = useToastStore();
