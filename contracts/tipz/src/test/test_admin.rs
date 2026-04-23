@@ -15,6 +15,7 @@ use crate::TipzContractClient;
 
 // ── shared setup ─────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 struct TestCtx<'a> {
     env: Env,
     client: TipzContractClient<'a>,
