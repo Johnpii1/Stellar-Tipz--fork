@@ -8,9 +8,11 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import ToastContainer from "@/components/shared/ToastContainer";
 import KeyboardShortcutsProvider from "@/components/shared/KeyboardShortcutsProvider";
 import { routes } from "@/routes";
+import { useI18n } from "@/i18n";
 
 const AppRoutes: React.FC = () => {
   const routeElements = useRoutes(routes);
+  const { t } = useI18n();
 
   return (
     <>
@@ -22,7 +24,7 @@ const AppRoutes: React.FC = () => {
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:bg-black focus:text-white focus:px-4 focus:py-2 focus:font-black focus:outline-none"
           >
-            Skip to main content
+            {t("app.skipToMain")}
           </a>
           <Header />
           <div className="flex-1">{routeElements}</div>

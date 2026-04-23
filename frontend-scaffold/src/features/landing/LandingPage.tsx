@@ -8,6 +8,7 @@ import TopCreatorsSection from "./TopCreatorsSection";
 import TrendingCreatorsSection from "./TrendingCreatorsSection";
 import CTASection from "./CTASection";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useI18n } from "@/i18n";
 
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 
@@ -17,7 +18,8 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
  * even when the contract is not yet deployed.
  */
 const LandingPage: React.FC = () => {
-  usePageTitle("Stellar Tipz \u2014 Decentralized Tipping on Stellar");
+  const { t } = useI18n();
+  usePageTitle(t("landing.title"));
 
   return (
     <div className="min-h-screen bg-white">
