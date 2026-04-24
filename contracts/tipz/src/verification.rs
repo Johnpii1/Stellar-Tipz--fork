@@ -1,6 +1,6 @@
 //! Verification system for creator profiles.
 
-use soroban_sdk::{Address, Env, String};
+use soroban_sdk::{Address, Env};
 
 use crate::errors::ContractError;
 use crate::events;

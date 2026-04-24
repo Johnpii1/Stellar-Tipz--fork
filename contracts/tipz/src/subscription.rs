@@ -4,7 +4,7 @@ use crate::errors::ContractError;
 use crate::events;
 use crate::storage::{self, DataKey};
 use crate::tips;
-use crate::types::{Profile, Subscription};
+use crate::types::Subscription;
 
 /// Create a new recurring tip subscription.
 pub fn create_subscription(
@@ -79,7 +79,8 @@ pub fn cancel_subscription(
 
 /// Execute all subscriptions that are due.
 /// This should ideally be callable by protocol automation.
-pub fn execute_subscriptions(env: &Env) -> Result<(), ContractError> {
+#[allow(dead_code)]
+pub fn execute_subscriptions(_env: &Env) -> Result<(), ContractError> {
     // In a real scenario, we might need a way to iterate through all subscriptions.
     // For this simplified implementation, we'll assume there's a mechanism to find due subscriptions.
     // Since we don't have a global iterator in Soroban persistent storage easily,

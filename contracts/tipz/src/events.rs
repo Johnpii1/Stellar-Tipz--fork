@@ -276,6 +276,7 @@ pub fn emit_subscription_executed(
 // ── Withdrawal Scheduling events ─────────────────────────────────────────────
 
 /// Topics : `("wd", "sched")`
+#[allow(dead_code)]
 pub fn emit_withdrawal_scheduled(
     env: &Env,
     creator: &Address,
@@ -290,6 +291,7 @@ pub fn emit_withdrawal_scheduled(
 }
 
 /// Topics : `("wd", "exec")`
+#[allow(dead_code)]
 pub fn emit_withdrawal_executed(env: &Env, creator: &Address, id: u32, amount: i128) {
     env.events().publish(
         (symbol_short!("wd"), symbol_short!("exec")),
@@ -298,6 +300,7 @@ pub fn emit_withdrawal_executed(env: &Env, creator: &Address, id: u32, amount: i
 }
 
 /// Topics : `("wd", "cancel")`
+#[allow(dead_code)]
 pub fn emit_withdrawal_cancelled(env: &Env, creator: &Address, id: u32) {
     env.events().publish(
         (symbol_short!("wd"), symbol_short!("cancel")),
@@ -308,6 +311,7 @@ pub fn emit_withdrawal_cancelled(env: &Env, creator: &Address, id: u32) {
 // ── Fee Distribution events ──────────────────────────────────────────────────
 
 /// Topics : `("fee", "split")`
+#[allow(dead_code)]
 pub fn emit_fee_split_updated(env: &Env, ops_pct: u32, pool_pct: u32) {
     env.events().publish(
         (symbol_short!("fee"), symbol_short!("split")),
@@ -316,6 +320,7 @@ pub fn emit_fee_split_updated(env: &Env, ops_pct: u32, pool_pct: u32) {
 }
 
 /// Topics : `("fee", "dist")`
+#[allow(dead_code)]
 pub fn emit_fee_distributed(env: &Env, amount: i128, to_ops: bool) {
     env.events().publish(
         (symbol_short!("fee"), symbol_short!("dist")),
@@ -324,6 +329,7 @@ pub fn emit_fee_distributed(env: &Env, amount: i128, to_ops: bool) {
 }
 
 /// Topics : `("pool", "dist")`
+#[allow(dead_code)]
 pub fn emit_pool_distribution(env: &Env, total_amount: i128, recipient_count: u32) {
     env.events().publish(
         (symbol_short!("pool"), symbol_short!("dist")),

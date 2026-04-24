@@ -935,6 +935,7 @@ mod tests {
 // Verification storage functions
 // ──────────────────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 pub fn get_verification_status(
     env: &Env,
     address: &Address,
@@ -944,6 +945,7 @@ pub fn get_verification_status(
         .get(&DataKey::VerificationStatus(address.clone()))
 }
 
+#[allow(dead_code)]
 pub fn set_verification_status(
     env: &Env,
     address: &Address,
@@ -955,12 +957,14 @@ pub fn set_verification_status(
     bump_profile_ttl(env, address);
 }
 
+#[allow(dead_code)]
 pub fn remove_verification_status(env: &Env, address: &Address) {
     env.storage()
         .persistent()
         .remove(&DataKey::VerificationStatus(address.clone()));
 }
 
+#[allow(dead_code)]
 pub fn get_verification_request(
     env: &Env,
     address: &Address,
