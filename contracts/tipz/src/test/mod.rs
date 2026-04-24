@@ -14,6 +14,7 @@ mod test_pause;
 mod test_profile_query;
 mod test_profiles;
 mod test_register;
+mod test_subscriptions;
 mod test_tips;
 mod test_ttl_desync;
 mod test_update_profile;
