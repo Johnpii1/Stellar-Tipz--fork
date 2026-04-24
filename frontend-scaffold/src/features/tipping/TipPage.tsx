@@ -15,7 +15,7 @@ import Avatar from "../../components/ui/Avatar";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Textarea from "../../components/ui/Textarea";
-import { useWallet, useContract } from "../../hooks";
+import { useWallet, useContract, useTransactionGuard } from "../../hooks";
 import ErrorState from "../../components/shared/ErrorState";
 import { categorizeError, ERRORS } from "@/helpers/error";
 import { MAX_MESSAGE_LENGTH } from "@/helpers/validation";
@@ -26,7 +26,7 @@ import TipResult from "./TipResult";
 import RecentTips from "./RecentTips";
 import { TipConfirmationModal } from "./TipConfirmationModal";
 import { useTipFlow } from "./useTipFlow";
-import { usePageTitle } from "@/hooks/usePageTitle";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import CreatorNotFound from "./CreatorNotFound";
 import TipAmountPresets from "./TipAmountPresets";
 import { useNavigate } from "react-router-dom";
@@ -61,13 +61,17 @@ const TipPage: React.FC = () => {
     fetchCreator();
   }, [fetchCreator]);
 
-  usePageTitle(
-    loading
+  usePageMeta({
+    title: loading
       ? "Loading..."
       : creator
       ? `Tip @${creator.username}`
       : "Creator Not Found",
-  );
+    description: creator
+      ? `Send a tip to ${creator.displayName || creator.username} on Stellar Tipz - decentralized, instant, and fair tipping on Stellar Blockchain`
+      : undefined,
+    ogUrl: creator ? `${window.location.origin}/@${creator.username}` : undefined,
+  });
 
   const {
     step,
@@ -77,11 +81,25 @@ const TipPage: React.FC = () => {
     error: flowError,
     txHash,
   } = useTipFlow(creator?.owner || "");
+  
+  // Transaction guard to prevent duplicate submissions
+  const { isPending: isTransactionPending, startTransaction } = useTransactionGuard();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Guard against submission during pending transaction
+    if (isTransactionPending || step === "signing" || step === "submitting") {
+      return;
+    }
     goToConfirm(amount, message);
   };
+  
+  // Wrapped confirm handler with transaction guard
+  const handleConfirmAndSign = useCallback(async () => {
+    await startTransaction(async () => {
+      await confirmAndSign();
+    });
+  }, [confirmAndSign, startTransaction]);
 
   useEffect(() => {
     if (step === "success" && txHash && creator) {
@@ -262,11 +280,11 @@ const TipPage: React.FC = () => {
           <TipConfirmationModal
             isOpen={step === "confirm"}
             onClose={reset}
-            onConfirm={() => void confirmAndSign()}
+            onConfirm={() => void handleConfirmAndSign()}
             creator={creator}
             amount={amount}
             message={message}
-            submitting={step === "signing" || step === "submitting"}
+            submitting={step === "signing" || step === "submitting" || isTransactionPending}
           />
 
           {step === "signing" || step === "submitting" ? (
