@@ -66,6 +66,8 @@ const AUTO_RECONNECT_TIMEOUT_MS = 5000;
 
 export const useWallet = () => {
   const {
+    wallets,
+    activeWalletKey,
     publicKey,
     connected,
     connecting,
@@ -76,6 +78,8 @@ export const useWallet = () => {
     signingStatus,
     connect,
     disconnect,
+    removeWallet,
+    setActiveWallet,
     setConnecting,
     setReconnecting,
     setError,
@@ -87,7 +91,8 @@ export const useWallet = () => {
     network === "PUBLIC" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
   const kit = useMemo(() => getKit(kitNetwork), [kitNetwork]);
 
-  // Auto-reconnect on mount if a previous session exists
+  // Auto-reconnect on mount: try to re-establish the active wallet session.
+  // If unavailable, remove it from the list but keep the rest.
   const hasAttemptedReconnect = useRef(false);
   useEffect(() => {
     if (hasAttemptedReconnect.current) return;
@@ -140,6 +145,7 @@ export const useWallet = () => {
 
   const actions = useMemo(
     () => ({
+      /** Open the wallet selection modal and add / activate the chosen wallet. */
       connect: async () => {
         setConnecting(true);
         setError(null);
@@ -168,6 +174,7 @@ export const useWallet = () => {
                   console.warn("Network auto-detection failed:", e);
                 }
 
+                // connect() adds to the list and makes it active
                 connect(address, option.id);
               } catch (err) {
                 console.error("Wallet connection failed:", err);
@@ -184,8 +191,19 @@ export const useWallet = () => {
         }
       },
 
+      /** Disconnect all wallets. */
       disconnect: () => {
         disconnect();
+      },
+
+      /** Remove a specific wallet from the list by public key. */
+      removeWallet: (key: string) => {
+        removeWallet(key);
+      },
+
+      /** Switch the active (default) wallet for signing transactions. */
+      setActiveWallet: (key: string) => {
+        setActiveWallet(key);
       },
 
       setNetwork: (newNetwork: "TESTNET" | "PUBLIC") => {
@@ -222,6 +240,8 @@ export const useWallet = () => {
       publicKey,
       connect,
       disconnect,
+      removeWallet,
+      setActiveWallet,
       setConnecting,
       setError,
       storeSetNetwork,
@@ -233,6 +253,10 @@ export const useWallet = () => {
 
   return useMemo(
     () => ({
+      /** All currently connected wallets. */
+      wallets,
+      /** Public key of the active wallet. */
+      activeWalletKey,
       publicKey,
       connected,
       connecting,
@@ -244,6 +268,8 @@ export const useWallet = () => {
       ...actions,
     }),
     [
+      wallets,
+      activeWalletKey,
       publicKey,
       connected,
       connecting,
