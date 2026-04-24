@@ -98,10 +98,13 @@ mod tests {
 
     #[test]
     fn fee_rounds_to_zero_for_tiny_amount() {
-        // 200 bps of 49 stroops = 0.98 → truncates to 0
+        // 200 bps of 49 stroops = 0.98 → truncates to 0, but minimum 1 stroop applies
+        // The implementation enforces a 1-stroop minimum fee when fee_bps > 0
+        // to prevent fee circumvention via dust withdrawals (see calculate_fee docs).
         let (fee, net) = calculate_fee(49, 200).unwrap();
-        assert_eq!(fee, 0);
-        assert_eq!(net, 49);
+        assert_eq!(fee, 1);
+        assert_eq!(net, 48);
+        assert_eq!(fee + net, 49);
     }
 
     #[test]
